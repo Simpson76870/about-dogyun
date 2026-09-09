@@ -3,177 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>네트워크 및 IT 학습 기록 | 자기소개</title>
+    <title>도균의 기술 & 자기소개 페이지</title>
     <style>
-        :root {
-            --bg-color: #f8f9fa;
-            --text-color: #212529;
-            --card-bg: #ffffff;
-            --border-color: #dee2e6;
-            --accent-color: #0d6efd;
-        }
-
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            line-height: 1.6;
-        }
-
-        /* 1366x768 / 1920x1080 첫 화면에 모든 핵심 영역이 담기도록 여백 조정 */
-        .container {
-            max-width: 960px;
-            margin: 0 auto;
-            padding: 24px 16px;
-        }
-
-        header {
-            margin-bottom: 20px;
-            border-bottom: 2px solid var(--border-color);
-            padding-bottom: 12px;
-        }
-
-        h1 {
-            font-size: 1.75rem;
-            margin: 0 0 8px 0;
-            color: #111;
-        }
-
-        .summary-text {
-            font-size: 1rem;
-            margin: 0;
-            color: #495057;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 16px;
-            margin-top: 16px;
-        }
-
-        .card {
-            background-color: var(--card-bg);
-            border: 1fr solid var(--border-color);
-            border-radius: 8px;
-            padding: 16px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        h2 {
-            font-size: 1.25rem;
-            margin-top: 0;
-            margin-bottom: 12px;
-            color: var(--accent-color);
-        }
-
-        /* STAR 형식 및 근거 */
-        .star-item {
-            margin-bottom: 12px;
-        }
-
-        .star-item strong {
-            display: inline-block;
-            width: 50px;
-        }
-
-        .toggle-btn {
-            background-color: var(--accent-color);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.95rem;
-        }
-
-        .toggle-btn:focus {
-            outline: 3px solid #000;
-        }
-
-        .details-content {
-            margin-top: 12px;
-            padding: 12px;
-            background-color: #e9ecef;
-            border-radius: 4px;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            * {
-                transition: none !important;
-                animation: none !important;
-            }
-        }
+        body { font-family: 'Arial', sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f9; color: #333; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        .btn { display: inline-block; background: #3498db; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; font-size: 16px; margin-top: 10px; }
+        .btn:hover { background: #2980b9; }
+        .skills-list { background: #eef2f5; padding: 15px; border-radius: 5px; list-style-type: square; }
+        #interaction-result { margin-top: 15px; font-weight: bold; color: #27ae60; }
     </style>
 </head>
 <body>
-    <main class="container">
-        <header>
-            <h1>IT 및 네트워크 기술을 탐구하는 개발자 지망생</h1>
-            <p class="summary-text">이 페이지는 채용 담당자 및 동료 학습자에게 네트워크 핵심 개념 이해 능력과 실무 관련 학습 경험을 투명하게 소개하기 위해 작성되었습니다.</p>
-        </header>
+    <div class="container">
+        <h1>👋 안녕하세요! 네트워크/IT를 공부하는 도균입니다.</h1>
+        <p>컴퓨터 네트워크와 IT 기술을 공부하며 배운 내용을 기록하고 있습니다.</p>
 
-        <section class="grid" aria-label="강점 및 취향 근거">
-            <!-- 항목 1 -->
-            <article class="card">
-                <h2>1. 패킷 분석 역량</h2>
-                <div class="star-item"><strong>상황:</strong> 네트워크 프로토콜 동작 방식을 직관적으로 이해하기 어려운 상황</div>
-                <div class="star-item"><strong>행동:</strong> Wireshark를 활용하여 TCP/IP 3-way handshake 패킷을 캡처하고 헥스 뷰 및 헤더 구조 분석</div>
-                <div class="star-item"><strong>결과:</strong> 패킷 단위 데이터 흐름 파악 및 연결 지연 원인 도출 가능</div>
-                <div class="star-item"><strong>근거:</strong> <a href="https://github.com" target="_blank" rel="noopener noreferrer">Wireshark 패킷 분석 요약 노트 (GitHub Link)</a></div>
-            </article>
+        <h2>💻 주요 관심 분야 & 기술 스택</h2>
+        <ul class="skills-list">
+            <li>TCP/IP 및 네트워크 프로토콜 분석 (Wireshark)</li>
+            <li>Cisco Packet Tracer 라우터/스위치 시뮬레이션</li>
+            <li>네트워크 보안 및 패킷 구조 분석</li>
+        </ul>
 
-            <!-- 항목 2 -->
-            <article class="card">
-                <h2>2. 시뮬레이션 실습</h2>
-                <div class="star-item"><strong>상황:</strong> 실제 장비 없이 다중 서브넷 네트워크 토폴로지 구성 필요</div>
-                <div class="star-item"><strong>행동:</strong> Cisco Packet Tracer를 통해 라우터/스위치 CLI 명령어로 VLAN 및 Static Routing 설정</div>
-                <div class="star-item"><strong>결과:</strong> 호스트 간 핑(Ping) 통과 성공 및 라우팅 테이블 검증 완료</div>
-                <div class="star-item"><strong>근거:</strong> <a href="https://blog.naver.com" target="_blank" rel="noopener noreferrer">Packet Tracer 토폴로지 설정 기록 (Blog Link)</a></div>
-            </article>
+        <h2>🔗 블로그 & 링크</h2>
+        <p>공부한 내용과 정리글은 아래 블로그에서 확인하실 수 있습니다.</p>
+        <!-- 아래 href에 본인의 실제 블로그 주소를 넣으세요 -->
+        <a href="https://blog.naver.com" target="_blank" class="btn">내 네이버 블로그 방문하기</a>
 
-            <!-- 항목 3 -->
-            <article class="card">
-                <h2>3. AI 도구 활용 능력</h2>
-                <div class="star-item"><strong>상황:</strong> 네트워크 개념 학습 중 복잡한 학술 용어의 명확한 정의 정리 필요</div>
-                <div class="star-item"><strong>행동:</strong> Notion AI 프롬프트를 활용하여 개념을 요약하고 교안 구조로 재구성</div>
-                <div class="star-item"><strong>결과:</strong> 복습 시간을 절반으로 단축하고 개인 지식 베이스 구축</div>
-                <div class="star-item"><strong>근거:</strong> <a href="https://notion.so" target="_blank" rel="noopener noreferrer">AI 기반 학습 서머리 템플릿 (Notion Link)</a></div>
-            </article>
-        </section>
-
-        <!-- 상호작용 영역 -->
-        <section class="card" style="margin-top: 16px;">
-            <h2>상세 학습 노트 보기</h2>
-            <p>키보드(Tab + Enter/Space) 및 마우스 클릭으로 접고 펼칠 수 있습니다.</p>
-            <button id="toggleBtn" class="toggle-btn" aria-expanded="false">상세 내용 펼치기</button>
-            <div id="details" class="details-content hidden" tabindex="0">
-                <p>네트워크 기초부터 보안, 시스템 구성까지 실무 중심의 역량을 쌓아가고 있습니다.</p>
-            </div>
-        </section>
-    </main>
+        <h2>⚡ 상호작용 테스트</h2>
+        <p>버튼을 누르거나 키보드 'Enter' 키를 눌러보세요!</p>
+        <button class="btn" onclick="handleClick()">인사하기 버튼</button>
+        <p id="interaction-result"></p>
+    </div>
 
     <script>
-        const toggleBtn = document.getElementById('toggleBtn');
-        const details = document.getElementById('details');
+        function handleClick() {
+            document.getElementById('interaction-result').innerText = '🎉 방문해주셔서 감사합니다! 멋진 하루 되세요.';
+        }
 
-        toggleBtn.addEventListener('click', () => {
-            const isExpanded = toggleBtn.getAttribute('aria-expanded') === 'true';
-            toggleBtn.setAttribute('aria-expanded', !isExpanded);
-            details.classList.toggle('hidden');
-            toggleBtn.textContent = isExpanded ? '상세 내용 펼치기' : '상세 내용 접기';
-        });
-
-        toggleBtn.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                toggleBtn.click();
+        // 키보드 상호작용 (Enter 키 입력 시)
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                handleClick();
             }
         });
     </script>
