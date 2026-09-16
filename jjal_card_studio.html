@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>짤-카드 스튜디오</title>
+<style>
+:root{--bg:#f4f7f8;--panel:#fff;--line:#dbe4e8;--text:#17313b;--muted:#6b8089;--accent:#1f6f7a;--accent2:#e7f3f5;--danger:#b43c3c;--shadow:0 10px 30px rgba(25,55,65,.08)}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif}
+button,input,select{font:inherit} button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--text);border-radius:10px;padding:9px 12px}
+button:hover{border-color:#9db5bd;background:#f9fbfc}.primary{background:var(--accent);color:#fff;border-color:var(--accent)}.danger{color:var(--danger)}
+header{padding:22px 28px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+.header-in{max-width:1320px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:20px}
+h1{font-size:22px;margin:0 0 4px}.sub{color:var(--muted);font-size:13px}.badge{background:var(--accent2);color:var(--accent);padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700}
+main{max-width:1320px;margin:22px auto;padding:0 18px;display:grid;grid-template-columns:360px 1fr;gap:18px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:18px}
+h2{font-size:15px;margin:0 0 14px}.section{padding-bottom:17px;margin-bottom:17px;border-bottom:1px solid var(--line)}.section:last-child{border-bottom:0;margin-bottom:0}
+.drop{border:2px dashed #b9cbd1;border-radius:14px;padding:22px;text-align:center;background:#fbfdfe}.drop.drag{border-color:var(--accent);background:var(--accent2)}
+.drop strong{display:block;margin-bottom:6px}.hint{font-size:12px;color:var(--muted);line-height:1.6}
+.row{display:flex;gap:8px;align-items:center}.row>*{flex:1}.row .auto{flex:0 0 auto}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 5px}input[type=text],input[type=number],select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px;background:#fff}
+input[type=color]{width:100%;height:40px;padding:3px;border:1px solid var(--line);border-radius:9px;background:#fff}
+input[type=range]{width:100%}.range-val{font-size:12px;color:var(--accent);font-weight:700}
+.aspect button{flex:1}.aspect button.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.templates{display:grid;gap:8px}.tpl{display:flex;align-items:center;gap:7px;padding:8px;border:1px solid var(--line);border-radius:10px}.tpl span{flex:1;font-size:13px}.tpl small{color:var(--muted)}
+.canvas-area{display:grid;grid-template-columns:minmax(280px,1fr) minmax(280px,1fr);gap:18px;align-items:start}
+.stage{min-height:620px;display:flex;align-items:center;justify-content:center;background:#edf2f4;border-radius:14px;padding:20px}
+canvas{display:block;width:auto;height:auto;max-width:100%;max-height:650px;box-shadow:0 8px 25px rgba(0,0,0,.14);background:#ddd;border-radius:4px;object-fit:contain}
+.preview-frame{width:100%;display:flex;align-items:center;justify-content:center;background:#eef3f5;border-radius:10px;overflow:hidden}
+.preview-frame img{display:block;width:100%;height:auto;max-width:100%;object-fit:contain;background:#ddd}
+.compare{display:grid;gap:12px}.compare-box{border:1px solid var(--line);border-radius:14px;padding:14px;background:#fafcfd}.compare-title{font-weight:800;font-size:13px;margin-bottom:10px;display:flex;justify-content:space-between}.compare img{display:block;max-width:100%;max-height:410px;margin:auto;background:#ddd}
+.status{font-size:12px;line-height:1.5;padding:10px;border-radius:9px;background:#f3f7f8}.status.ok{background:#eaf6ef;color:#24613a}.status.err{background:#fff0f0;color:#8e2c2c}
+.footer-note{font-size:11px;color:var(--muted);line-height:1.55;margin-top:10px}
+@media(max-width:1000px){main{grid-template-columns:1fr}.canvas-area{grid-template-columns:1fr}.stage{min-height:420px}}
+</style>
+</head>
+<body>
+<header><div class="header-in">
+  <div><h1>짤-카드 스튜디오</h1><div class="sub">이미지 + 문구를 안전하게 조합하고, 화면과 내려받은 결과를 같은 데이터로 만듭니다.</div></div>
+  <div class="badge">로그인 · 회원가입 · 외부 URL 없음</div>
+</div></header>
+
+<main>
+<aside class="panel">
+  <div class="section">
+    <h2>1. 이미지 불러오기</h2>
+    <div id="drop" class="drop">
+      <strong>PNG / JPEG 파일을 놓거나 선택</strong>
+      <div class="hint">브라우저 안에서만 처리합니다. 지원하지 않는 파일을 넣어도 현재 작업은 유지됩니다.</div>
+      <br><button id="pick" class="primary">이미지 선택</button>
+      <input id="file" type="file" hidden>
+    </div>
+    <div id="fileStatus" class="status" style="margin-top:10px">이미지를 선택하면 PNG/JPEG 미리보기가 시작됩니다.</div>
+  </div>
+
+  <div class="section">
+    <h2>2. 화면비</h2>
+    <div class="row aspect">
+      <button data-ratio="1:1" class="active">1:1</button><button data-ratio="4:5">4:5</button><button data-ratio="9:16">9:16</button>
+    </div>
+    <div class="hint" style="margin-top:8px">미리보기와 저장 파일은 동일한 캔버스 크기·좌표 계산을 사용합니다.</div>
+  </div>
+
+  <div class="section">
+    <h2>3. 문구 편집</h2>
+    <label>문구 (최대 12개 문자/이모지)</label>
+    <input id="text" type="text" value="검사 문구입니다 🙂" maxlength="30">
+    <div id="count" class="hint">0 / 12</div>
+    <div class="grid2">
+      <div><label>X 위치 (%)</label><input id="x" type="range" min="0" max="100" value="50"><div><span id="xv" class="range-val">50%</span></div></div>
+      <div><label>Y 위치 (%)</label><input id="y" type="range" min="0" max="100" value="82"><div><span id="yv" class="range-val">82%</span></div></div>
+    </div>
+    <div class="grid2">
+      <div><label>글자 크기</label><input id="size" type="range" min="12" max="180" value="52"><div><span id="sv" class="range-val">52px</span></div></div>
+      <div><label>글자 색</label><input id="color" type="color" value="#ffffff"></div>
+    </div>
+    <label>줄바꿈/맞춤</label>
+    <select id="align"><option value="center">가운데</option><option value="left">왼쪽</option><option value="right">오른쪽</option></select>
+  </div>
+
+  <div class="section">
+    <h2>4. 템플릿 관리</h2>
+    <div class="row"><input id="tplName" type="text" value="새 템플릿"><button id="saveTpl" class="primary auto">저장</button></div>
+    <div id="templates" class="templates" style="margin-top:9px"></div>
+    <div class="row" style="margin-top:9px"><button id="exportJson">JSON 내보내기</button><button id="importJson" class="auto">JSON 가져오기</button><input id="jsonFile" type="file" accept=".json,application/json" hidden></div>
+    <div class="footer-note">저장 데이터에는 이미지의 원본 URL·메타데이터·비밀값을 넣지 않습니다. 내보낸 JSON은 템플릿 설정만 담습니다.</div>
+  </div>
+
+  <div class="section">
+    <h2>5. 내보내기</h2>
+    <div class="row"><select id="format"><option value="image/png">PNG</option><option value="image/jpeg">JPEG</option></select><button id="download" class="primary auto">현재 카드 저장</button></div>
+    <button id="download3" style="width:100%;margin-top:9px">1:1 · 4:5 · 9:16 세 장 저장</button>
+    <div id="exportStatus" class="status" style="margin-top:10px">저장 전에도 오른쪽 비교 영역에서 결과를 확인할 수 있습니다.</div>
+  </div>
+</aside>
+
+<section class="panel">
+  <div class="canvas-area">
+    <div>
+      <h2>편집 미리보기 <span id="ratioLabel" class="hint">1:1</span></h2>
+      <div class="stage"><canvas id="canvas" width="900" height="900"></canvas></div>
+    </div>
+    <div>
+      <h2>화면 ↔ 내려받은 파일 비교</h2>
+      <div class="compare">
+        <div class="compare-box"><div class="compare-title"><span>화면 미리보기</span><small id="previewInfo"></small></div><div class="preview-frame"><img id="previewImg" alt="화면 미리보기"></div></div>
+        <div class="compare-box"><div class="compare-title"><span>내려받을 결과</span><small id="fileInfo">아직 생성하지 않음</small></div><div class="preview-frame"><img id="downloadImg" alt="내려받을 결과 미리보기"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-note">검증 포인트: PNG/JPEG 미리보기, 문구 위치·크기·색 즉시 반영, 1:1/4:5/9:16 동일 좌표 저장, 12문자 제한, 잘못된 입력 보존, 템플릿 CRUD, JSON 손상 방어, 브라우저 캔버스 재인코딩을 통한 메타데이터 제거.</div>
+</section>
+</main>
+
+<script>
+(() => {
+  "use strict";
+  const $ = s => document.querySelector(s);
+  const canvas = $("#canvas"), ctx = canvas.getContext("2d");
+  const state = {
+    img:null, imageType:null, ratio:"1:1", text:"검사 문구입니다 🙂",
+    x:50,y:82,size:52,color:"#ffffff",align:"center",
+    templates:[]
+  };
+  const ratioSizes = {"1:1":[900,900],"4:5":[900,1125],"9:16":[900,1600]};
+
+  function graphemes(s){
+    try { return [...new Intl.Segmenter("ko",{granularity:"grapheme"}).segment(s)].map(x=>x.segment); }
+    catch(e){ return Array.from(s); }
+  }
+  function clamp12(s){
+    const a=graphemes(s); return a.slice(0,12).join("");
+  }
+  function setStatus(el,msg,type=""){el.textContent=msg;el.className="status "+type}
+  function updateLabels(){
+    $("#xv").textContent=state.x+"%"; $("#yv").textContent=state.y+"%"; $("#sv").textContent=state.size+"px";
+    $("#count").textContent=graphemes(state.text).length+" / 12";
+    $("#ratioLabel").textContent=state.ratio;
+    const [rw,rh]=ratioSizes[state.ratio];
+    $("#previewImg").style.aspectRatio=`${rw}/${rh}`;
+    $("#downloadImg").style.aspectRatio=`${rw}/${rh}`;
+  }
+  function fitText(text,maxWidth){
+    ctx.font = `800 ${state.size}px system-ui, -apple-system, "Noto Sans KR", sans-serif`;
+    const chars=graphemes(text), lines=[]; let line="";
+    for(const ch of chars){
+      const test=line+ch;
+      if(line && ctx.measureText(test).width>maxWidth){lines.push(line);line=ch}else line=test;
+    }
+    if(line) lines.push(line);
+    return lines;
+  }
+  function draw(){
+    const [w,h]=ratioSizes[state.ratio]; canvas.width=w; canvas.height=h;
+    ctx.clearRect(0,0,w,h);
+    if(state.img){
+      // 사진 전체가 잘리지 않도록 contain 방식으로 배치합니다.
+      // 화면비가 달라도 원본 사진의 모든 영역이 미리보기/저장본에 동일하게 보이며,
+      // 남는 공간은 배경으로 채웁니다.
+      ctx.fillStyle="#111";
+      ctx.fillRect(0,0,w,h);
+      const scale=Math.min(w/state.img.naturalWidth,h/state.img.naturalHeight);
+      const iw=state.img.naturalWidth*scale, ih=state.img.naturalHeight*scale;
+      ctx.drawImage(state.img,(w-iw)/2,(h-ih)/2,iw,ih);
+    }else{
+      const g=ctx.createLinearGradient(0,0,w,h); g.addColorStop(0,"#203943");g.addColorStop(1,"#7896a0");
+      ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+    }
+    const maxW=w*0.88, lines=fitText(state.text,maxW), lineH=state.size*1.15;
+    const total=lines.length*lineH, cx=w*state.x/100, cy=h*state.y/100;
+    ctx.fillStyle=state.color;ctx.textBaseline="middle";
+    ctx.textAlign=state.align;
+    for(let i=0;i<lines.length;i++){
+      const yy=cy-total/2+lineH*(i+.5);
+      ctx.fillText(lines[i],cx,yy);
+    }
+    updateLabels();
+    $("#previewImg").src=canvas.toDataURL("image/png");
+    $("#previewInfo").textContent=`${w}×${h} · ${state.text}`;
+    makeDownloadPreview();
+  }
+  function makeDownloadPreview(){
+    const mime=$("#format").value;
+    const q=mime==="image/jpeg" ? .94 : undefined;
+    const data=canvas.toDataURL(mime,q);
+    $("#downloadImg").src=data;
+    $("#fileInfo").textContent=`${canvas.width}×${canvas.height} · ${mime==="image/png"?"PNG":"JPEG"}`;
+  }
+  function detectImageType(buffer){
+    const b=new Uint8Array(buffer);
+    const png=b.length>=8 && b[0]===0x89&&b[1]===0x50&&b[2]===0x4E&&b[3]===0x47&&b[4]===0x0D&&b[5]===0x0A&&b[6]===0x1A&&b[7]===0x0A;
+    const jpg=b.length>=3 && b[0]===0xFF&&b[1]===0xD8&&b[2]===0xFF;
+    return png ? 'image/png' : jpg ? 'image/jpeg' : null;
+  }
+  function loadImage(file){
+    if(!file) return;
+    // 1) 바이너리 시그니처 검사로 실제 PNG/JPEG인지 확인
+    const typeReader=new FileReader();
+    typeReader.onload=()=>{
+      const detected=detectImageType(typeReader.result);
+      if(!detected){
+        setStatus($("#fileStatus"),`지원하지 않는 파일입니다: ${file.name}. PNG 또는 JPEG 이미지만 업로드할 수 있습니다. 현재 작업은 유지했습니다.`,"err");
+        return;
+      }
+      // 2) 브라우저가 확실하게 해석할 수 있는 Data URL로 로드
+      const dataReader=new FileReader();
+      dataReader.onload=()=>{
+        const img=new Image();
+        img.onload=()=>{
+          state.img=img; state.imageType=detected;
+          setStatus($("#fileStatus"),`불러오기 완료: ${file.name} · ${detected==='image/png'?'PNG':'JPEG'} · ${img.naturalWidth}×${img.naturalHeight}`,"ok");
+          draw();
+        };
+        img.onerror=()=>setStatus($("#fileStatus"),"PNG/JPEG 파일이지만 이미지 디코딩에 실패했습니다. 현재 작업은 유지했습니다.","err");
+        img.src=dataReader.result;
+      };
+      dataReader.onerror=()=>setStatus($("#fileStatus"),"이미지 데이터를 읽지 못했습니다. 현재 작업은 유지했습니다.","err");
+      dataReader.readAsDataURL(file);
+    };
+    typeReader.onerror=()=>setStatus($("#fileStatus"),"파일을 읽지 못했습니다. 현재 작업은 유지했습니다.","err");
+    typeReader.readAsArrayBuffer(file);
+  }
+  function downloadData(data,name){
+    const a=document.createElement("a");a.href=data;a.download=name;document.body.appendChild(a);a.click();a.remove();
+  }
+  function slug(s){return (s||"card").replace(/[^\w가-힣-]+/g,"_").slice(0,30)}
+  function downloadCurrent(){
+    const mime=$("#format").value,q=mime==="image/jpeg"?.94:undefined;
+    const ext=mime==="image/png"?"png":"jpg", data=canvas.toDataURL(mime,q);
+    downloadData(data,`${slug(state.text)}_${state.ratio.replace(":","x")}.${ext}`);
+    setStatus($("#exportStatus"),`저장 완료: ${canvas.width}×${canvas.height} · ${ext.toUpperCase()}. 화면과 같은 캔버스에서 재인코딩했습니다.`,"ok");
+    $("#downloadImg").src=data; $("#fileInfo").textContent=`저장 결과 · ${canvas.width}×${canvas.height} · ${ext.toUpperCase()}`;
+  }
+  function renderTemplates(){
+    const box=$("#templates");box.innerHTML="";
+    state.templates.forEach((t,i)=>{
+      const d=document.createElement("div");d.className="tpl";
+      d.innerHTML=`<span>${escapeHtml(t.name)}<br><small>${t.ratio} · ${t.text}</small></span>`;
+      const use=document.createElement("button");use.textContent="불러오기";
+      use.onclick=()=>{Object.assign(state,{text:t.text,x:t.x,y:t.y,size:t.size,color:t.color,align:t.align,ratio:t.ratio});syncInputs();draw()};
+      const del=document.createElement("button");del.textContent="삭제";del.className="danger";
+      del.onclick=()=>{state.templates.splice(i,1);renderTemplates()};
+      d.append(use,del);box.appendChild(d);
+    });
+  }
+  function escapeHtml(s){return s.replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+  function templateData(){return {schemaVersion:1,name:$("#tplName").value.trim()||"새 템플릿",ratio:state.ratio,text:state.text,x:state.x,y:state.y,size:state.size,color:state.color,align:state.align}}
+  function validTemplate(t){
+    return t && typeof t==="object" && typeof t.name==="string" && ["1:1","4:5","9:16"].includes(t.ratio) &&
+      typeof t.text==="string" && graphemes(t.text).length<=12 &&
+      Number.isFinite(+t.x)&&+t.x>=0&&+t.x<=100 && Number.isFinite(+t.y)&&+t.y>=0&&+t.y<=100 &&
+      Number.isFinite(+t.size)&&+t.size>=12&&+t.size<=180 && /^#[0-9a-fA-F]{6}$/.test(t.color) &&
+      ["center","left","right"].includes(t.align);
+  }
+  function syncInputs(){
+    $("#text").value=state.text;$("#x").value=state.x;$("#y").value=state.y;$("#size").value=state.size;$("#color").value=state.color;$("#align").value=state.align;
+    document.querySelectorAll(".aspect button").forEach(b=>b.classList.toggle("active",b.dataset.ratio===state.ratio));
+  }
+
+  // events
+  $("#pick").onclick=()=>$("#file").click(); $("#file").onchange=e=>loadImage(e.target.files[0]);
+  ["dragenter","dragover"].forEach(ev=>$("#drop").addEventListener(ev,e=>{e.preventDefault();$("#drop").classList.add("drag")}));
+  ["dragleave","drop"].forEach(ev=>$("#drop").addEventListener(ev,e=>{e.preventDefault();$("#drop").classList.remove("drag")}));
+  $("#drop").addEventListener("drop",e=>loadImage(e.dataTransfer.files[0]));
+  document.querySelectorAll(".aspect button").forEach(b=>b.onclick=()=>{state.ratio=b.dataset.ratio;draw()});
+  $("#text").oninput=e=>{const v=clamp12(e.target.value); if(v!==e.target.value)e.target.value=v;state.text=v;draw()};
+  $("#x").oninput=e=>{state.x=+e.target.value;draw()}; $("#y").oninput=e=>{state.y=+e.target.value;draw()};
+  $("#size").oninput=e=>{state.size=+e.target.value;draw()}; $("#color").oninput=e=>{state.color=e.target.value;draw()};
+  $("#align").onchange=e=>{state.align=e.target.value;draw()}; $("#format").onchange=makeDownloadPreview;
+  $("#download").onclick=downloadCurrent;
+  $("#saveTpl").onclick=()=>{const t=templateData();state.templates.push(t);renderTemplates();setStatus($("#exportStatus"),`템플릿 저장 완료: ${t.name}`,"ok")};
+  $("#exportJson").onclick=()=>{
+    const payload={schemaVersion:1,templates:state.templates.map(t=>({...t,text:clamp12(t.text)}))};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+    downloadData(URL.createObjectURL(blob),"jjal-card-templates.json");setTimeout(()=>URL.revokeObjectURL(blob),1000);
+  };
+  $("#importJson").onclick=()=>$("#jsonFile").click();
+  $("#jsonFile").onchange=e=>{
+    const f=e.target.files[0]; if(!f)return;
+    const reader=new FileReader();
+    reader.onload=()=>{
+      try{
+        const obj=JSON.parse(reader.result);
+        if(!obj || obj.schemaVersion!==1 || !Array.isArray(obj.templates) || obj.templates.some(t=>!validTemplate(t))) throw new Error("스키마 또는 템플릿 값이 올바르지 않습니다.");
+        state.templates=obj.templates.map(t=>({...t,text:clamp12(t.text)}));renderTemplates();
+        setStatus($("#exportStatus"),`JSON 가져오기 완료 · ${state.templates.length}개 템플릿`,"ok");
+      }catch(err){setStatus($("#exportStatus"),`손상된 JSON이라 저장하지 않았습니다: ${err.message}. 기존 템플릿은 유지됩니다.`,"err")}
+      e.target.value="";
+    }; reader.readAsText(f);
+  };
+  $("#download3").onclick=()=>{
+    const old=state.ratio,mime=$("#format").value,ext=mime==="image/png"?"png":"jpg";
+    ["1:1","4:5","9:16"].forEach((r,i)=>setTimeout(()=>{
+      state.ratio=r;draw();downloadData(canvas.toDataURL(mime,mime==="image/jpeg"?.94:undefined),`jjal-card_${r.replace(":","x")}.${ext}`);
+    },i*450));
+    setTimeout(()=>{state.ratio=old;draw();setStatus($("#exportStatus"),"완성 이미지 3개(1:1 · 4:5 · 9:16)를 저장했습니다.","ok")},1500);
+  };
+
+  // Three ready-to-use templates
+  state.templates=[
+    {schemaVersion:1,name:"기본 밈 카드",ratio:"1:1",text:"오늘도 가보자",x:50,y:82,size:58,color:"#ffffff",align:"center"},
+    {schemaVersion:1,name:"4:5 SNS 카드",ratio:"4:5",text:"사이즈까지 딱 맞게",x:50,y:84,size:48,color:"#ffffff",align:"center"},
+    {schemaVersion:1,name:"세로 스토리",ratio:"9:16",text:"12글자도 안 잘려요🙂",x:50,y:80,size:54,color:"#ffffff",align:"center"}
+  ];
+  syncInputs();renderTemplates();draw();
+})();
+</script>
+</body>
+</html>
