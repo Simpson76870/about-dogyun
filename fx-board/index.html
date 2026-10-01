@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>오늘의 진짜 정보판 — 원/달러 · 원/엔</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,500;0,600;1,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --board-bg: #1b1c1e;
+    --panel-bg: #232527;
+    --flap-bg: #2f3236;
+    --flap-bg-live: #34383d;
+    --hairline: #3c3f43;
+    --ink: #f3ecda;
+    --ink-dim: #a9a49a;
+    --gold: #d9a441;
+    --up: #8caa87;
+    --down: #c26a53;
+    --alert: #c26a53;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    background: var(--board-bg);
+    color: var(--ink);
+    font-family: "IBM Plex Mono", monospace;
+  }
+
+  body {
+    padding: 2.5rem 1.25rem 4rem;
+    max-width: 880px;
+    margin: 0 auto;
+  }
+
+  h1, h2 {
+    font-family: "Newsreader", serif;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  header.board-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    border-bottom: 1px solid var(--hairline);
+    padding-bottom: 1.25rem;
+    margin-bottom: 2rem;
+  }
+
+  header.board-header h1 {
+    font-size: 1.6rem;
+    letter-spacing: 0.01em;
+  }
+
+  header.board-header .clock {
+    font-size: 0.85rem;
+    color: var(--ink-dim);
+  }
+
+  section { margin-bottom: 2.75rem; }
+
+  .rates {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+  }
+  @media (max-width: 560px) {
+    .rates { grid-template-columns: 1fr; }
+  }
+
+  .flap {
+    background: var(--panel-bg);
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    padding: 1.25rem 1.25rem 1rem;
+  }
+
+  .flap .pair-label {
+    font-family: "Newsreader", serif;
+    font-style: italic;
+    font-size: 1rem;
+    color: var(--ink-dim);
+    margin-bottom: 0.6rem;
+  }
+
+  .flap .value-card {
+    background: var(--flap-bg);
+    border-radius: 4px;
+    padding: 0.9rem 0.8rem;
+    text-align: center;
+    font-size: 2.1rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+    transition: background 0.2s ease;
+  }
+  .flap .value-card.is-live { background: var(--flap-bg-live); }
+  .flap .value-card.is-stale { color: var(--ink-dim); }
+  .flap .value-card .unit {
+    display: block;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: var(--ink-dim);
+    margin-top: 0.35rem;
+  }
+
+  .meta-lines {
+    margin-top: 0.75rem;
+    font-size: 0.72rem;
+    color: var(--ink-dim);
+    line-height: 1.55;
+  }
+  .meta-lines .label { color: var(--ink); }
+
+  .status-badge {
+    display: inline-block;
+    margin-top: 0.6rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 3px;
+    font-size: 0.68rem;
+    border: 1px solid var(--hairline);
+  }
+  .status-badge.ok { color: var(--up); border-color: var(--up); }
+  .status-badge.stale { color: var(--ink-dim); }
+  .status-badge.error { color: var(--alert); border-color: var(--alert); }
+  .status-badge.pending { color: var(--gold); border-color: var(--gold); }
+
+  h2.section-title {
+    font-size: 1.05rem;
+    margin-bottom: 0.9rem;
+    color: var(--ink);
+  }
+
+  .compare-row {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    background: var(--panel-bg);
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    font-size: 0.9rem;
+  }
+  .compare-row .item .delta.up { color: var(--up); }
+  .compare-row .item .delta.down { color: var(--down); }
+  .compare-row .item .dates { color: var(--ink-dim); font-size: 0.72rem; }
+
+  .failure-panel .buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .failure-panel button {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.78rem;
+    background: var(--panel-bg);
+    color: var(--ink);
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    padding: 0.45rem 0.75rem;
+    cursor: pointer;
+  }
+  .failure-panel button:hover { border-color: var(--gold); color: var(--gold); }
+  .failure-panel button.recover {
+    border-color: var(--up);
+    color: var(--up);
+  }
+  .failure-note {
+    font-size: 0.78rem;
+    color: var(--ink-dim);
+    line-height: 1.6;
+  }
+
+  table.history {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  table.history th, table.history td {
+    text-align: left;
+    padding: 0.45rem 0.6rem;
+    border-bottom: 1px solid var(--hairline);
+  }
+  table.history th { color: var(--ink-dim); font-weight: 400; }
+
+  .empty-state {
+    color: var(--ink-dim);
+    font-size: 0.85rem;
+    border: 1px dashed var(--hairline);
+    border-radius: 6px;
+    padding: 1rem 1.1rem;
+  }
+
+  footer {
+    border-top: 1px solid var(--hairline);
+    padding-top: 1.25rem;
+    font-size: 0.72rem;
+    color: var(--ink-dim);
+    line-height: 1.7;
+  }
+  footer a { color: var(--gold); }
+</style>
+</head>
+<body>
+
+<header class="board-header">
+  <h1>오늘의 진짜 정보판</h1>
+  <span class="clock" id="clock">기준 시간대: Asia/Seoul (KST)</span>
+</header>
+
+<section class="rates" id="rates-section">
+  <div class="flap" id="usd-flap">
+    <div class="pair-label">원 / 달러 (USD → KRW)</div>
+    <div class="value-card" id="usd-value">불러오는 중…</div>
+    <div class="status-badge pending" id="usd-status">조회 중</div>
+    <div class="meta-lines" id="usd-meta"></div>
+  </div>
+
+  <div class="flap" id="jpy-flap">
+    <div class="pair-label">원 / 100엔 (JPY → KRW)</div>
+    <div class="value-card" id="jpy-value">불러오는 중…</div>
+    <div class="status-badge pending" id="jpy-status">조회 중</div>
+    <div class="meta-lines" id="jpy-meta"></div>
+  </div>
+</section>
+
+<section id="compare-section">
+  <h2 class="section-title">어제 대비 변화</h2>
+  <div id="compare-content"><div class="empty-state">기록이 2건 이상 쌓이면 여기에 변화값이 표시됩니다.</div></div>
+</section>
+
+<section class="failure-panel">
+  <h2 class="section-title">실패 상태 미리보기</h2>
+  <p class="failure-note">
+    아래 버튼은 실제 외부 원천을 인위적으로 실패시켜 재현합니다. 위 두 값 카드가 각 실패에서
+    어떻게 다르게 보이는지, 그리고 실패 중에도 마지막 정상값이 어떻게 유지되는지 확인하세요.
+  </p>
+  <div class="buttons">
+    <button data-mode="slow">느린 응답</button>
+    <button data-mode="unauthorized">401 / 403</button>
+    <button data-mode="ratelimit">호출 제한</button>
+    <button data-mode="offline">오프라인</button>
+    <button data-mode="format">응답 형식 변경</button>
+    <button data-mode="" class="recover">정상으로 복구 / 다시 시도</button>
+  </div>
+</section>
+
+<section id="history-section">
+  <h2 class="section-title">일별 기록</h2>
+  <div id="history-content"><div class="empty-state">아직 저장된 기록이 없습니다 — 첫 자동 수집(GitHub Actions)을 기다리는 중입니다.</div></div>
+</section>
+
+<footer>
+  <div>출처: <a href="https://www.frankfurter.dev/" target="_blank" rel="noopener">Frankfurter API</a> (ECB 기준환율) · 로그인·API 키·비밀값 없이 호출됩니다.</div>
+  <div>매일 기록은 GitHub Actions가 KST 날짜 기준으로 하루 한 번만 <code>data/history.json</code>에 추가합니다.</div>
+  <div>실패 시뮬레이션은 실제 네트워크 대신 이 페이지 안에서 합성한 응답으로 재현됩니다.</div>
+</footer>
+
+<script>
+(function () {
+  const el = (id) => document.getElementById(id);
+  let history = [];
+  let failureMode = null; // null | 'slow' | 'unauthorized' | 'ratelimit' | 'offline' | 'format'
+  let lastGood = { USDKRW: null, JPYKRW_100: null }; // 이번 세션에서 마지막으로 성공한 값(없으면 history 최신값 사용)
+
+  function fmtKRW(n) {
+    return new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 }).format(n);
+  }
+
+  function nowKST() {
+    return new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul", hour12: false });
+  }
+
+  el("clock").textContent = `기준 시간대: Asia/Seoul (KST) · 지금: ${nowKST()}`;
+
+  async function loadHistory() {
+    try {
+      const res = await fetch("data/history.json", { cache: "no-store" });
+      history = await res.json();
+    } catch {
+      history = [];
+    }
+    if (history.length > 0) {
+      const latest = history[history.length - 1];
+      lastGood.USDKRW = { rate: latest.pairs.USDKRW.rate, date: latest.date, source_date: latest.pairs.USDKRW.source_date };
+      lastGood.JPYKRW_100 = { rate: latest.pairs.JPYKRW_100.rate, date: latest.date, source_date: latest.pairs.JPYKRW_100.source_date };
+    }
+    renderHistory();
+    renderCompare();
+  }
+
+  function renderHistory() {
+    const box = el("history-content");
+    if (history.length === 0) return; // 빈 상태 문구 유지
+    const rows = history
+      .slice()
+      .reverse()
+      .map(
+        (e) => `<tr>
+          <td>${e.date}</td>
+          <td>${fmtKRW(e.pairs.USDKRW.rate)} KRW</td>
+          <td>${fmtKRW(e.pairs.JPYKRW_100.rate)} KRW</td>
+          <td>${e.fetched_at}</td>
+        </tr>`
+      )
+      .join("");
+    box.innerHTML = `<table class="history">
+      <thead><tr><th>날짜(KST)</th><th>USD→KRW</th><th>JPY(100)→KRW</th><th>조회 시각</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  function renderCompare() {
+    const box = el("compare-content");
+    if (history.length < 2) return; // 빈 상태 문구 유지
+    const [prev, latest] = [history[history.length - 2], history[history.length - 1]];
+
+    function line(labelKo, key) {
+      const p = prev.pairs[key].rate;
+      const l = latest.pairs[key].rate;
+      const diff = l - p;
+      const pct = (diff / p) * 100;
+      const dir = diff >= 0 ? "up" : "down";
+      const arrow = diff >= 0 ? "▲" : "▼";
+      return `<div class="item">
+        <div>${labelKo}: <span class="delta ${dir}">${arrow} ${fmtKRW(Math.abs(diff))} (${pct.toFixed(2)}%)</span></div>
+        <div class="dates">${prev.date} → ${latest.date}</div>
+      </div>`;
+    }
+
+    box.innerHTML = `<div class="compare-row">
+      ${line("USD→KRW", "USDKRW")}
+      ${line("JPY(100)→KRW", "JPYKRW_100")}
+    </div>`;
+  }
+
+  function setCard(prefix, { text, unit, status, statusClass, metaLines, stale }) {
+    const value = el(`${prefix}-value`);
+    const statusEl = el(`${prefix}-status`);
+    const meta = el(`${prefix}-meta`);
+    value.innerHTML = `${text}${unit ? `<span class="unit">${unit}</span>` : ""}`;
+    value.classList.toggle("is-stale", !!stale);
+    statusEl.textContent = status;
+    statusEl.className = `status-badge ${statusClass}`;
+    meta.innerHTML = metaLines.map((l) => `<div>${l}</div>`).join("");
+  }
+
+  function showStaleFallback(prefix, key, badgeText) {
+    const g = lastGood[key];
+    if (!g) {
+      setCard(prefix, {
+        text: "값 없음",
+        status: badgeText,
+        statusClass: "error",
+        metaLines: ["<span class=\"label\">저장된 이전 값도 아직 없습니다.</span>"],
+      });
+      return;
+    }
+    setCard(prefix, {
+      text: fmtKRW(g.rate),
+      unit: key === "USDKRW" ? "KRW" : "KRW per 100 JPY",
+      status: badgeText,
+      statusClass: "error",
+      stale: true,
+      metaLines: [
+        `<span class="label">마지막 정상값</span> · ${g.date} 기록 (원천 기준일 ${g.source_date})`,
+        `지금은 새 값을 받지 못해 이 값을 유지 중입니다.`,
+      ],
+    });
+  }
+
+  async function simulateOrFetch(from, to, key) {
+    if (failureMode === "slow") {
+      await new Promise((r) => setTimeout(r, 4000));
+      // 느린 응답도 결국은 성공으로 처리 (지연만 재현)
+    } else if (failureMode === "unauthorized") {
+      const err = new Error("합성 실패: 401 Unauthorized");
+      err.kind = "unauthorized";
+      throw err;
+    } else if (failureMode === "ratelimit") {
+      const err = new Error("합성 실패: 429 Too Many Requests");
+      err.kind = "ratelimit";
+      throw err;
+    } else if (failureMode === "offline") {
+      const err = new Error("합성 실패: 네트워크 연결 없음");
+      err.kind = "offline";
+      throw err;
+    } else if (failureMode === "format") {
+      // 응답은 오지만 구조가 예상과 다른 경우
+      return { rates: { WRONG_FIELD: "??" }, date: null, __malformed: true };
+    }
+
+    const res = await fetch(`https://api.frankfurter.app/latest?from=${from}&to=${to}`, { cache: "no-store" });
+    if (!res.ok) {
+      const err = new Error(`HTTP ${res.status}`);
+      err.kind = "http";
+      throw err;
+    }
+    return res.json();
+  }
+
+  async function fetchOne(prefix, from, to, key, label) {
+    setCard(prefix, { text: "조회 중…", status: "조회 중", statusClass: "pending", metaLines: [] });
+    try {
+      const body = await simulateOrFetch(from, to, key);
+      const rate = body?.rates?.[to];
+      if (typeof rate !== "number" || !body.date) {
+        const err = new Error("응답 형식이 예상과 다릅니다");
+        err.kind = "format";
+        throw err;
+      }
+      const displayRate = key === "JPYKRW_100" ? rate * 100 : rate;
+      lastGood[key] = { rate: displayRate, date: nowKST().slice(0, 10), source_date: body.date };
+      setCard(prefix, {
+        text: fmtKRW(displayRate),
+        unit: key === "USDKRW" ? "KRW" : "KRW per 100 JPY",
+        status: "정상",
+        statusClass: "ok",
+        metaLines: [
+          `<span class="label">출처</span> Frankfurter API (ECB)`,
+          `<span class="label">원천 시각(기준일)</span> ${body.date}`,
+          `<span class="label">조회 시각</span> ${nowKST()} (KST)`,
+        ],
+      });
+    } catch (err) {
+      const kindMessage = {
+        unauthorized: "401 / 403 — 접근 거절",
+        ratelimit: "호출 제한(429) — 요청이 너무 잦음",
+        offline: "오프라인 — 네트워크 연결 없음",
+        format: "응답 형식이 예상과 다름",
+        http: `HTTP 오류 (${err.message})`,
+      };
+      showStaleFallback(prefix, key, kindMessage[err.kind] || "조회 실패");
+    }
+  }
+
+  async function refreshLive() {
+    await Promise.all([
+      fetchOne("usd", "USD", "KRW", "USDKRW", "원/달러"),
+      fetchOne("jpy", "JPY", "KRW", "JPYKRW_100", "원/100엔"),
+    ]);
+  }
+
+  document.querySelectorAll(".failure-panel button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      failureMode = btn.dataset.mode || null;
+      refreshLive();
+    });
+  });
+
+  loadHistory().then(refreshLive);
+})();
+</script>
+
+</body>
+</html>
