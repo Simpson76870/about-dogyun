@@ -32,7 +32,9 @@ function nowKSTISO() {
 }
 
 async function fetchRate(from, to) {
-  const url = `https://api.frankfurter.app/latest?from=${from}&to=${to}`;
+  // 구 도메인 api.frankfurter.app은 신규 도메인(api.frankfurter.dev)으로 영구 리다이렉트되며
+  // 리다이렉트 과정에서 CORS 문제가 생길 수 있어 신규 도메인을 직접 호출한다.
+  const url = `https://api.frankfurter.dev/v1/latest?base=${from}&symbols=${to}`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
