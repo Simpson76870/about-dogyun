@@ -1,0 +1,30 @@
+name: handoff-checks
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Playwright
+        run: |
+          npm i --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Find runner
+        run: echo "RUNNER=$(find . -name run-checks.mjs -not -path './node_modules/*' | head -1)" >> "$GITHUB_ENV"
+      - name: Verify frozen checks
+        run: node "$RUNNER" --verify
+      - name: Run 10 frozen checks
+        run: node "$RUNNER"
+      - name: Save results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: check-results
+          path: "**/handoff/results/"
