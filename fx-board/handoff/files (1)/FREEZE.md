@@ -13,7 +13,7 @@
 | 요청 수 | **25회** | 해당 AI에 보낸 내 메시지 수 (오류 붙여넣기·재시도 포함) |
 
 ## 3. 화면 계약 (검사가 읽는 것)
-- `index.html`은 저장소 루트, 데이터는 `data/history.json`.
+- 환율 정보판 페이지는 `fx-board/fx.html`, 데이터는 `fx-board/data/history.json`. `handoff/` 폴더는 `fx-board/` 안에 두고, runner가 정보판 위치를 자동으로 찾는다. 이하 계약의 경로는 `fx-board/` 기준.
 - `data/history.json` 최상위에 `updated_at` (UTC ISO 8601, 마지막 **성공** 호출 시각). 일일 Actions가 성공할 때만 갱신한다.
 - `#freshness` 요소의 `data-state` 는 `fresh | stale | unknown` 중 하나.
 - `#last-updated`: `YYYY-MM-DD HH:mm KST` + 경과 시간. 경과 표기: 1시간 미만 `N분 전`, 48시간 미만 `N시간 전`, 그 이상 `N일 전` (내림).

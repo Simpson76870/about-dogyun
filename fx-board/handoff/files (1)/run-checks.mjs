@@ -8,7 +8,13 @@ import { extname, join, normalize, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const root = join(here, '..');
+const parent = join(here, '..');
+// 환율 정보판 위치 자동 탐색: data/history.json 이 있는 폴더 (SITE_DIR 로 직접 지정 가능)
+const cands = [process.env.SITE_DIR && join(parent, process.env.SITE_DIR), parent, join(parent, 'fx-board'), join(parent, '..', 'fx-board')].filter(Boolean);
+const root = cands.find(d => existsSync(join(d, 'data', 'history.json')));
+if (!root) { console.error('data/history.json 을 찾지 못했습니다. 찾아본 곳:\n  ' + cands.join('\n  ')); process.exit(3); }
+const pageFile = existsSync(join(root, 'fx.html')) ? 'fx.html' : 'index.html';
+console.log(`정보판 폴더: ${root}  페이지: ${pageFile}`);
 const checksPath = join(here, 'checks.json');
 const raw = readFileSync(checksPath);
 const hash = createHash('sha256').update(raw).digest('hex');
@@ -52,7 +58,7 @@ for (const c of spec.checks) {
       }
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(d) });
     });
-    await page.goto(`http://localhost:4173/index.html?now=${encodeURIComponent(c.input.now)}`);
+    await page.goto(`http://localhost:4173/${pageFile}?now=${encodeURIComponent(c.input.now)}`);
     await page.waitForSelector('#freshness[data-state]', { state: 'attached', timeout: 5000 });
     rateTexts[c.id] = await page.locator('[data-rate]').allTextContents();
     for (const e of c.expect) {
