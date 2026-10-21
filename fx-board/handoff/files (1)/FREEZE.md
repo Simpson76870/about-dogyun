@@ -13,20 +13,20 @@
 | 요청 수 | **25회** | 해당 AI에 보낸 내 메시지 수 (오류 붙여넣기·재시도 포함) |
 
 ## 3. 화면 계약 (검사가 읽는 것)
-- 환율 정보판 페이지는 `fx-board/fx.html`, 데이터는 `fx-board/data/history.json`. `handoff/` 폴더는 `fx-board/` 안에 두고, runner가 정보판 위치를 자동으로 찾는다. 이하 계약의 경로는 `fx-board/` 기준.
-- `data/history.json` 최상위에 `updated_at` (UTC ISO 8601, 마지막 **성공** 호출 시각). 일일 Actions가 성공할 때만 갱신한다.
+- 환율 정보판 페이지는 `fx-board/fx.html`, 데이터는 `fx-board/data/history.json`. 검사 파일들은 `fx-board/handoff/files (1)/`에 있고(폴더 이름에 띄어쓰기와 괄호가 들어 있음), runner가 정보판 위치를 자동으로 찾는다. GitHub Actions 설정은 저장소 맨 위 `.github/workflows/checks.yml`. 이하 계약의 경로는 `fx-board/` 기준.
+- `data/history.json`은 일별 기록 **배열**이고, **마지막 갱신 시각 = 마지막 항목의 `fetched_at`** (ISO 8601, 수집 스크립트가 이미 기록). checks.json의 `updated_at` 입력은 이 값을 뜻한다. (2026-10-20 보정: 처음엔 최상위 `updated_at` 객체로 가정했으나 실제 파일이 배열이라 고침. checks.json은 불변.)
 - `#freshness` 요소의 `data-state` 는 `fresh | stale | unknown` 중 하나.
 - `#last-updated`: `YYYY-MM-DD HH:mm KST` + 경과 시간. 경과 표기: 1시간 미만 `N분 전`, 48시간 미만 `N시간 전`, 그 이상 `N일 전` (내림).
 - `#stale-banner`: stale이면 "오래된 데이터" 포함, unknown이면 "갱신 시각을 알 수 없습니다" 포함, fresh이면 숨김.
-- 규칙: 경과 36시간 **이하**면 fresh, 초과면 stale. `updated_at` 없음·날짜 아님·현재보다 미래·파일 요청 실패는 unknown.
+- 규칙: 경과 36시간 **이하**면 fresh, 초과면 stale. `fetched_at` 없음·날짜 아님·현재보다 미래·파일 요청 실패는 unknown.
 - 각 통화쌍의 최신 값 표시 요소에 `data-rate="USD/KRW"` 같은 속성. stale·unknown에서도 마지막 정상 값을 지우지 않는다.
 - 시각 고정용 시험 장치: 주소에 `?now=<UTC ISO>` 가 있으면 그 시각을 "지금"으로 쓴다.
 
 ## 4. 같은 최초 요청 (A에게 그대로 붙여넣기)
-> 이 저장소의 환율 정보판에 "마지막 갱신 시각 표시와 오래된 데이터 경고" 기능을 추가해줘.
-> 화면 계약은 handoff/FREEZE.md 3번, 통과 기준은 handoff/checks.json 10개야. 검사는 수정·삭제·완화·기대값 변경 금지.
-> 실행은 `node handoff/run-checks.mjs`. 너는 T-01~T-05를 통과시키는 것까지만 하고, 시간(90분)이나 요청(25회) 상한 전에 멈춰서
-> handoff/HANDOFF.md를 일곱 제목(목표 / 현재 상태 / 실행 명령 / 통과 검사 / 남은 문제 / 다음 행동 / 건드리지 말 것)으로 써줘.
+> 이 저장소(https://github.com/Simpson76870/about-dogyun)의 환율 정보판(fx-board/fx.html, 데이터 fx-board/data/history.json)에 "마지막 갱신 시각 표시와 오래된 데이터 경고" 기능을 추가해줘.
+> 화면 계약은 fx-board/handoff/files (1)/FREEZE.md 3번, 통과 기준은 같은 폴더의 checks.json 10개야. 검사는 수정·삭제·완화·기대값 변경 금지.
+> 검사는 코드를 올리면(push) GitHub Actions의 handoff-checks가 실행해 (로컬 실행 명령: `node "fx-board/handoff/files (1)/run-checks.mjs"`). 너는 T-01~T-05를 통과시키는 것까지만 하고, 시간(90분)이나 요청(25회) 상한 전에 멈춰서
+> fx-board/handoff/HANDOFF.md를 일곱 제목(목표 / 현재 상태 / 실행 명령 / 통과 검사 / 남은 문제 / 다음 행동 / 건드리지 말 것)으로 써줘.
 > "현재 상태"에 저장소 커밋 ID를 적고, 첫 실패 검사와 다음 행동을 포함해줘.
 
 B에게는 **저장소 주소 + HANDOFF.md만** 제공한다 (대화 전문 금지).
@@ -34,7 +34,7 @@ B에게는 **저장소 주소 + HANDOFF.md만** 제공한다 (대화 전문 금�
 ## 5. 작업 기록 (순서: A 시작 → A 인계 → B 시작 → B 종료)
 | # | 사건 | 시각(KST) | 저장소 커밋 ID | 검사 PASS/10 | 누적 요청 수 | 누적 작업 분 |
 |---|---|---|---|---|---|---|
-| 0 | 고정 완료 (기준선, 시작 소스) |  |  |  | — | — |
+| 0 | 고정 완료 (기준선, 시작 소스) | 2026-10-20 16:28 | ab44f7f | 0/10 (기준선, 오류 회차 미집계) | — | — |
 | 1 | A 시작 |  |  |  | 0 | 0 |
 | 2 | A 종료·인계 |  |  |  |  |  |
 | 3 | B 시작 (인계 문서 해시 일치 확인) |  |  |  | 0 | 0 |
