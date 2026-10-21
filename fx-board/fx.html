@@ -334,16 +334,20 @@
     const box = el("freshness");
     const line = el("last-updated");
     const banner = el("stale-banner");
-    const latest = history[history.length - 1];
-    const t = latest && latest.fetched_at ? new Date(latest.fetched_at) : null;
+    const latest = Array.isArray(history) && history.length > 0
+      ? history[history.length - 1]
+      : null;
+    const rawFetchedAt = latest && latest.fetched_at;
+    const isoTimestamp = typeof rawFetchedAt === "string"
+      && /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$/.test(rawFetchedAt);
+    const t = isoTimestamp ? new Date(rawFetchedAt) : null;
     const now = getNow();
 
-    // TODO(B): 갱신 시각이 없거나 날짜가 아니거나 미래이거나 파일을 못 읽은 경우는 "unknown"으로
-    // 처리해야 한다 (T-06~T-09). 지금은 판단을 보류하는 "pending" 상태로만 둔다.
-    if (!t || isNaN(t) || t > now) {
-      box.dataset.state = "pending";
-      line.textContent = "갱신 시각을 확인할 수 없음 (처리 전)";
-      banner.hidden = true;
+    if (!t || !Number.isFinite(t.getTime()) || t > now) {
+      box.dataset.state = "unknown";
+      line.textContent = "갱신 시각을 알 수 없습니다";
+      banner.textContent = "갱신 시각을 알 수 없습니다. 저장된 기록을 확인할 수 없습니다.";
+      banner.hidden = false;
       return;
     }
 
@@ -372,7 +376,10 @@
   async function loadHistory() {
     try {
       const res = await fetch("data/history.json", { cache: "no-store" });
-      history = await res.json();
+      if (!res.ok) throw new Error(`history.json 요청 실패: HTTP ${res.status}`);
+      const data = await res.json();
+      if (!Array.isArray(data)) throw new Error("history.json 형식이 배열이 아닙니다");
+      history = data;
     } catch {
       history = [];
     }
