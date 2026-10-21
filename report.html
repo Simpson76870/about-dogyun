@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>과제 5 비교 보고서 · 대화가 끊겨도 이어지는 프로젝트</title>
+<style>
+:root{--bg:#fbfaf7;--card:#fff;--ink:#1d1f23;--dim:#5d636b;--line:#dcd8cf;--ok:#1f7a45;--bad:#b3402f;--acc:#2b5fa8}
+@media (prefers-color-scheme:dark){:root{--bg:#17181a;--card:#202225;--ink:#ece9e1;--dim:#a2a7ad;--line:#3a3d41;--ok:#6fbf8a;--bad:#e0806d;--acc:#8fb4ee}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+main{max-width:860px;margin:0 auto;padding:2rem 1rem 4rem}
+h1{font-size:1.6rem;margin:0 0 .4rem}h2{font-size:1.15rem;margin:2.4rem 0 .7rem;padding-top:.4rem;border-top:1px solid var(--line)}
+p,li{margin:.3rem 0}.dim{color:var(--dim);font-size:.9rem}
+.wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;background:var(--card);font-size:.92rem}
+th,td{border:1px solid var(--line);padding:.45rem .6rem;text-align:left;vertical-align:top}th{background:rgba(127,127,127,.12)}
+.ok{color:var(--ok);font-weight:600}.bad{color:var(--bad);font-weight:600}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.88em}a{color:var(--acc)}
+.box{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:.8rem 1rem}
+pre{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:.8rem 1rem;overflow-x:auto;font-size:.85rem;margin:.5rem 0}
+</style>
+</head>
+<body>
+<main>
+<h1>과제 5 · 대화가 끊겨도 이어지는 프로젝트</h1>
+<p><strong>비교 보고서</strong> — 같은 개선 하나를 두 AI 세션이 차례로 이어서 완성했고, 새 세션은 저장소와 인수인계 문서만으로 같은 검사 10개를 모두 통과시켰습니다.</p>
+<p class="dim">개선 기능: 환율 정보판의 “마지막 갱신 시각 표시 + 오래된 데이터 경고” (과제 4) · 공통 상한: 작업 90분, 요청 25회 · 소스: <a href="https://github.com/Simpson76870/about-dogyun">github.com/Simpson76870/about-dogyun</a></p>
+
+<h2>1. 가린 비교표</h2>
+<div class="wrap"><table>
+<tr><th></th><th>실제 작업시간</th><th>요청 수</th><th>오류 회차</th><th>검사 통과 수</th><th>시작 → 종료 고정 소스 버전</th></tr>
+<tr><td><strong>도구 X</strong> (먼저 작업)</td><td>40분</td><td>5회</td><td>1</td><td class="bad">6 / 10</td><td><a href="https://github.com/Simpson76870/about-dogyun/commit/ab44f7f"><code>ab44f7f</code></a> → <a href="https://github.com/Simpson76870/about-dogyun/commit/a5f5e3c"><code>a5f5e3c</code></a></td></tr>
+<tr><td><strong>도구 Y</strong> (이어받음)</td><td>30분</td><td>4회</td><td>1</td><td class="ok">10 / 10</td><td><a href="https://github.com/Simpson76870/about-dogyun/commit/a5f5e3c"><code>a5f5e3c</code></a> → <a href="https://github.com/Simpson76870/about-dogyun/commit/b0ac336"><code>b0ac336</code></a></td></tr>
+</table></div>
+<p class="dim">두 상한(90분·25회) 모두 X·Y 각각 이하입니다. 모델·서비스 이름은 이 화면에서 가렸습니다. Y는 X와 다른 서비스입니다. 오류 회차 = 고정 검사 10개를 실행한 회차 중 하나 이상 FAIL이 나온 회차 수. 재작업량(추가·삭제 줄 수)은 제출 뒤 로컬 채점기가 위 버전 쌍으로 계산하므로 여기에 손으로 적지 않았습니다.</p>
+
+<h2>2. 작업 순서와 전체 실행 회차</h2>
+<p><strong>X 시작 → X 인계 → Y 시작 → Y 완료</strong> 순서로 진행했습니다. 아래는 저장소 Actions(<code>handoff-checks</code>)의 8개 실행 전부입니다.</p>
+<div class="wrap"><table>
+<tr><th>#</th><th>커밋</th><th>내용</th><th>결과</th><th>구분</th></tr>
+<tr><td>1</td><td><code>8616168</code></td><td>검사 실행 설정 추가</td><td class="bad">✗</td><td>기준선 (기능 없음, 미집계)</td></tr>
+<tr><td>2</td><td><code>ab44f7f</code></td><td>옛 설정 삭제 — <strong>시작 소스</strong></td><td class="bad">✗ 0/10</td><td>기준선 (미집계)</td></tr>
+<tr><td>3</td><td><code>be32f1a</code></td><td>검사 도구 보정 (history.json이 배열임을 반영)</td><td class="bad">✗</td><td>X 작업, 기능 전이라 미집계</td></tr>
+<tr><td>4</td><td><code>75f2808</code></td><td>X가 기능 구현</td><td class="bad">✗ 6/10</td><td><strong>X 오류 회차 1</strong></td></tr>
+<tr><td>5</td><td><code>29ab49e</code></td><td>FREEZE.md (문서만)</td><td class="bad">✗</td><td>인계 준비, 미집계</td></tr>
+<tr><td>6</td><td><code>a5f5e3c</code></td><td>HANDOFF.md 작성 — <strong>X 종료·인계 / Y 시작 소스</strong></td><td class="bad">✗</td><td>문서만, 미집계</td></tr>
+<tr><td>7</td><td><code>5010ba3</code></td><td>Y의 첫 구현</td><td class="bad">✗</td><td><strong>Y 오류 회차 1</strong></td></tr>
+<tr><td>8</td><td><code>b0ac336</code></td><td>Y의 수정 — <strong>Y 종료</strong></td><td class="ok">✓ 10/10</td><td>최종</td></tr>
+</table></div>
+<p class="dim">미집계 기준: 기능이 없던 기준선, 검사 도구 보정, 문서만 바꾼 커밋은 어느 쪽의 오류 회차에도 세지 않았습니다. 검사 도구 보정(#3)은 판정 기준을 바꾼 것이 아니고, 검사 10개 파일은 처음부터 끝까지 같습니다(sha256 <code>350baa7d99df…</code>, 매 실행의 <code>Verify frozen checks</code> 단계에서 대조).</p>
+
+<h2>3. 고정 검사 10개 (작업 시작 전에 고정)</h2>
+<div class="wrap"><table>
+<tr><th>ID</th><th>입력</th><th>관찰 가능한 기대값</th><th>X 종료 시점</th><th>Y 종료</th></tr>
+<tr><td>T-01</td><td>갱신 6시간 전</td><td>fresh, KST 시각 표시, 경고 숨김</td><td class="ok">PASS</td><td class="ok">PASS</td></tr>
+<tr><td>T-02</td><td>갱신 6시간 전</td><td>“6시간 전” 표시</td><td class="ok">PASS</td><td class="ok">PASS</td></tr>
+<tr><td>T-03</td><td>정확히 36시간 경과 (경계)</td><td>아직 fresh, 경고 숨김</td><td class="ok">PASS</td><td class="ok">PASS</td></tr>
+<tr><td>T-04</td><td>36시간 1분 경과 (경계)</td><td>stale, 경고에 “오래된 데이터”</td><td class="ok">PASS</td><td class="ok">PASS</td></tr>
+<tr><td>T-05</td><td>5일 경과</td><td>stale, “5일 전”과 갱신 시각 표시</td><td class="ok">PASS</td><td class="ok">PASS</td></tr>
+<tr><td>T-06</td><td>갱신 시각 항목 없음</td><td>unknown, “갱신 시각을 알 수 없습니다”, 마지막 값 유지</td><td class="bad">FAIL</td><td class="ok">PASS</td></tr>
+<tr><td>T-07</td><td>갱신 시각이 날짜가 아닌 글자</td><td>unknown과 같은 안내</td><td class="bad">FAIL</td><td class="ok">PASS</td></tr>
+<tr><td>T-08</td><td>갱신 시각이 현재보다 10분 미래</td><td>fresh로 속이지 않고 unknown</td><td class="bad">FAIL</td><td class="ok">PASS</td></tr>
+<tr><td>T-09</td><td>기록 파일 요청이 404</td><td>unknown, 경고 표시, 화면 오류 없음</td><td class="bad">FAIL</td><td class="ok">PASS</td></tr>
+<tr><td>T-10</td><td>오래된 상태</td><td>마지막 정상 환율 값이 fresh일 때와 같음</td><td class="ok">PASS</td><td class="ok">PASS</td></tr>
+</table></div>
+<p class="dim">검사 삭제 0건 · 완화 0건 · 기대값 변경 0건. 분담: X가 T-01~T-05를 맡았고 T-10은 기존 동작으로 함께 통과, Y가 남은 T-06~T-09를 마쳤습니다.</p>
+
+<h2>4. 인수인계 문서</h2>
+<p>X가 남긴 <a href="https://github.com/Simpson76870/about-dogyun/blob/main/fx-board/handoff/HANDOFF.md"><code>fx-board/handoff/HANDOFF.md</code></a> (일곱 항목: 목표 / 현재 상태 / 실행 명령 / 통과 검사 / 남은 문제 / 다음 행동 / 건드리지 말 것). 현재 상태에 코드 기준 커밋과 첫 실패 검사(T-06)를 적었습니다.</p>
+<ul>
+<li>Y에게 준 것: 저장소 주소와 이 문서뿐이며, 앞 대화나 추가 자료는 주지 않았습니다.</li>
+<li>인수인계 누락: 기록된 것 없음. Y가 시작한 뒤 이 문서를 고친 커밋이 없습니다(문서 커밋 #5·#6은 모두 Y 시작 전).</li>
+<li>새 환경 재현: 실행 명령은 Actions가 매번 새 서버에서 처음부터 설치하고 실행하는 방식으로 재현됩니다(#2~#8).</li>
+</ul>
+
+<h2>5. 다음 작업에서 도구를 고르는 내 기준</h2>
+<div class="box"><strong>같은 검사를 자동으로 돌릴 수 있는 작업은 인수인계 문서를 먼저 쓰고, 요청 수가 적게 든 쪽에 이어서 맡긴다.</strong></div>
+<p class="dim">한계: 한 번만 해 본 비교이고, X는 구조·검사 설계를 이어받은 기능 구현까지, Y는 남은 4개 검사만 맡아서 일의 양이 같지 않았습니다. 그래서 시간·요청 수의 차이는 도구의 우열이 아니라 맡은 몫의 차이일 수 있습니다.</p>
+
+<h2>6. 짧은 확인 방법 4줄</h2>
+<ol>
+<li><strong>위치</strong>: <a href="https://github.com/Simpson76870/about-dogyun/actions">github.com/Simpson76870/about-dogyun/actions</a> 의 <code>handoff-checks</code></li>
+<li><strong>3단계 이내 행동</strong>: ① 목록 맨 위 실행(#8, “Fix timestamp validation…”)을 연다 → ② <code>checks</code>를 누른다 → ③ <code>Run 10 frozen checks</code>를 펼친다.</li>
+<li><strong>통과 모습</strong>: PASS가 T-01~T-10까지 열 줄 보이고 마지막 줄이 <code>10/10 PASS</code>. 바로 위 <code>Verify frozen checks</code>도 초록 체크.</li>
+<li><strong>안 될 때 모습</strong>: 실행 줄이 빨간 ✗이고 로그에 <code>FAIL T-0x …</code> 줄이 남습니다. 로그가 열리지 않으면 아래 7번의 결과 사본으로 대신 확인하세요.</li>
+</ol>
+
+<h2>7. AI와 나의 판단 3줄</h2>
+<ol>
+<li><strong>AI에게 맡긴 일</strong>: 검사 10개·사용 상한·화면 계약 초안 설계, 환율 정보판 기능 구현과 인수인계 문서 작성(X), 문서만 받고 남은 검사 4개를 구현(Y).</li>
+<li><strong>직접 판단한 일</strong>: 개선 대상(과제 4 환율 정보판의 갱신 시각·오래된 데이터 경고)과 두 AI의 역할 분담, Y를 다른 서비스로 정하기, 로컬 설치 대신 GitHub Actions로 검사하기, 문서의 커밋 번호를 저장소와 대조한 뒤에야 Y를 시작하기, Y에게 문서 외 자료를 주지 않기, 결과를 Actions 화면에서 직접 확인하기.</li>
+<li><strong>AI 제안을 따르지 않은 일</strong>: 새 채팅에서 X를 시작하자는 제안 대신 준비 과정이 쌓인 같은 대화를 X로 쓰기로 했고(요청 수는 X 시작 이후만 셈), 내 컴퓨터에 검사 도구를 설치하자는 제안도 따르지 않고 GitHub Actions로 바꿨습니다.</li>
+</ol>
+
+<h2>8. 최종 실행 결과 사본 (#8)</h2>
+<pre>정보판 폴더: fx-board  페이지: fx.html
+checks.json == 고정본 (sha256 350baa7d99df…)
+PASS  T-01  신선한 데이터: 갱신 시각이 KST로 보이고 경고는 숨김
+PASS  T-02  경과 시간이 '6시간 전'으로 보임
+PASS  T-03  경계값: 정확히 36시간 경과는 아직 신선
+PASS  T-04  경계값: 36시간 1분 경과는 오래됨, 경고 표시
+PASS  T-05  5일 경과: '5일 전'과 갱신 시각이 함께 보이고 경고 표시
+PASS  T-06  updated_at 항목이 없음: unknown, 안내 경고, 마지막 값은 그대로 표시
+PASS  T-07  updated_at이 날짜가 아닌 글자('어제'): unknown과 같은 안내
+PASS  T-08  updated_at이 현재보다 미래(10분 뒤): fresh로 속이지 않고 unknown
+PASS  T-09  data/history.json 요청이 404: unknown, 경고 표시, 화면 오류 없음
+PASS  T-10  오래된 상태에서도 마지막 정상 환율 값이 신선할 때와 똑같이 남아 있음
+
+10/10 PASS  (회차 1)</pre>
+<p class="dim">이 페이지에는 실제 개인정보와 비밀값이 없습니다(키·토큰·비밀번호를 쓰지 않는 공개 API만 사용).</p>
+</main>
+</body>
+</html>
