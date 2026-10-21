@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -25,6 +24,7 @@
   }
 
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
 
   html, body {
     margin: 0;
@@ -67,6 +67,28 @@
   }
 
   section { margin-bottom: 2.75rem; }
+
+  /* 데이터 신선도: 저장된 일별 기록의 마지막 갱신 시각 + 오래된 데이터 경고 */
+  .freshness {
+    background: var(--panel-bg);
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    padding: 0.9rem 1.25rem;
+    margin-bottom: 1.75rem;
+    font-size: 0.85rem;
+  }
+  .freshness .label { color: var(--ink-dim); margin-right: 0.5rem; }
+  .freshness[data-state="fresh"] { border-color: var(--up); }
+  .freshness[data-state="stale"] { border-color: var(--alert); }
+  .stale-banner {
+    margin-top: 0.7rem;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--alert);
+    border-radius: 4px;
+    color: var(--alert);
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
 
   .rates {
     display: grid;
@@ -219,17 +241,22 @@
   <span class="clock" id="clock">기준 시간대: Asia/Seoul (KST)</span>
 </header>
 
+<section class="freshness" id="freshness" aria-live="polite">
+  <div><span class="label">저장된 기록의 마지막 갱신</span><span id="last-updated">확인 중…</span></div>
+  <div class="stale-banner" id="stale-banner" role="alert" hidden></div>
+</section>
+
 <section class="rates" id="rates-section">
   <div class="flap" id="usd-flap">
     <div class="pair-label">원 / 달러 (USD → KRW)</div>
-    <div class="value-card" id="usd-value">불러오는 중…</div>
+    <div class="value-card" id="usd-value" data-rate="USD/KRW">불러오는 중…</div>
     <div class="status-badge pending" id="usd-status">조회 중</div>
     <div class="meta-lines" id="usd-meta"></div>
   </div>
 
   <div class="flap" id="jpy-flap">
     <div class="pair-label">원 / 100엔 (JPY → KRW)</div>
-    <div class="value-card" id="jpy-value">불러오는 중…</div>
+    <div class="value-card" id="jpy-value" data-rate="JPY/KRW">불러오는 중…</div>
     <div class="status-badge pending" id="jpy-status">조회 중</div>
     <div class="meta-lines" id="jpy-meta"></div>
   </div>
@@ -274,6 +301,64 @@
   let failureMode = null; // null | 'slow' | 'unauthorized' | 'ratelimit' | 'offline' | 'format'
   let lastGood = { USDKRW: null, JPYKRW_100: null }; // 이번 세션에서 마지막으로 성공한 값(없으면 history 최신값 사용)
 
+  // ---- 데이터 신선도 (과제 5) ----
+  // 시험용: 주소에 ?now=<UTC ISO> 가 있으면 그 시각을 "지금"으로 쓴다.
+  const NOW_PARAM = new URLSearchParams(location.search).get("now");
+  const STALE_LIMIT_MS = 36 * 60 * 60 * 1000; // 36시간 이하면 fresh, 초과면 stale
+
+  function getNow() {
+    const d = NOW_PARAM ? new Date(NOW_PARAM) : new Date();
+    return isNaN(d) ? new Date() : d;
+  }
+
+  function fmtKSTMinute(d) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Seoul",
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    }).formatToParts(d);
+    const m = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+    return `${m.year}-${m.month}-${m.day} ${m.hour}:${m.minute}`;
+  }
+
+  // 1시간 미만 N분 전 / 48시간 미만 N시간 전 / 그 이상 N일 전 (내림)
+  function fmtElapsed(ms) {
+    const min = Math.floor(ms / 60000);
+    if (min < 60) return `${min}분 전`;
+    const h = Math.floor(min / 60);
+    if (h < 48) return `${h}시간 전`;
+    return `${Math.floor(h / 24)}일 전`;
+  }
+
+  function renderFreshness() {
+    const box = el("freshness");
+    const line = el("last-updated");
+    const banner = el("stale-banner");
+    const latest = history[history.length - 1];
+    const t = latest && latest.fetched_at ? new Date(latest.fetched_at) : null;
+    const now = getNow();
+
+    // TODO(B): 갱신 시각이 없거나 날짜가 아니거나 미래이거나 파일을 못 읽은 경우는 "unknown"으로
+    // 처리해야 한다 (T-06~T-09). 지금은 판단을 보류하는 "pending" 상태로만 둔다.
+    if (!t || isNaN(t) || t > now) {
+      box.dataset.state = "pending";
+      line.textContent = "갱신 시각을 확인할 수 없음 (처리 전)";
+      banner.hidden = true;
+      return;
+    }
+
+    const elapsed = now - t;
+    const stale = elapsed > STALE_LIMIT_MS;
+    box.dataset.state = stale ? "stale" : "fresh";
+    line.textContent = `${fmtKSTMinute(t)} KST · ${fmtElapsed(elapsed)}`;
+    if (stale) {
+      banner.textContent = `오래된 데이터입니다 — 저장된 기록이 ${fmtElapsed(elapsed)} 마지막으로 갱신되었습니다. 아래 값은 마지막 정상값일 수 있습니다.`;
+      banner.hidden = false;
+    } else {
+      banner.hidden = true;
+    }
+  }
+
   function fmtKRW(n) {
     return new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 }).format(n);
   }
@@ -298,6 +383,7 @@
     }
     renderHistory();
     renderCompare();
+    renderFreshness();
   }
 
   function renderHistory() {
