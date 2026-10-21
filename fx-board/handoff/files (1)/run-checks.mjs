@@ -30,7 +30,17 @@ if (process.argv.includes('--verify')) process.exit(0);
 
 const spec = JSON.parse(raw);
 const { chromium } = await import('playwright');
-const baseData = JSON.parse(readFileSync(join(root, 'data', 'history.json'), 'utf8'));
+// history.json 은 일별 기록 배열이다. "마지막 갱신 시각" = 마지막 항목의 fetched_at.
+// 검사는 실제 파일 내용에 흔들리지 않도록 고정된 시험용 기록 2건에서 마지막 항목의 fetched_at 만 바꿔 입력한다.
+const mkEntry = (date, usd, jpy) => ({
+  date, fetched_at: `${date}T00:10:00Z`,
+  pairs: {
+    USDKRW: { rate: usd, unit: 'KRW', source_date: date },
+    JPYKRW_100: { rate: jpy, unit: 'KRW per 100 JPY', source_date: date },
+  },
+  source: 'test-fixture',
+});
+const baseData = [mkEntry('2026-10-19', 1400.1, 920.5), mkEntry('2026-10-20', 1402.3, 921.4)];
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml' };
 
 const server = createServer((req, res) => {
@@ -52,16 +62,20 @@ for (const c of spec.checks) {
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
   try {
+    await page.route(/api\.frankfurter\.dev|fonts\.(googleapis|gstatic)\.com/, r => r.abort());
     await page.route('**/data/history.json*', route => {
       if (c.input.http_status) return route.fulfill({ status: c.input.http_status, body: 'x' });
       const d = structuredClone(baseData);
+      const last = d[d.length - 1];
       if ('updated_at' in c.input) {
-        if (c.input.updated_at === null) delete d.updated_at; else d.updated_at = c.input.updated_at;
+        if (c.input.updated_at === null) delete last.fetched_at; else last.fetched_at = c.input.updated_at;
       }
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(d) });
     });
     await page.goto(`http://localhost:4173/${pageFile}?now=${encodeURIComponent(c.input.now)}`);
     await page.waitForSelector('#freshness[data-state]', { state: 'attached', timeout: 5000 });
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(300);
     rateTexts[c.id] = await page.locator('[data-rate]').allTextContents();
     for (const e of c.expect) {
       let ok = false, why = '';
