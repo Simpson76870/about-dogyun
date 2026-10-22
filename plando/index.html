@@ -33,6 +33,7 @@ const PRI={high:'높음',mid:'보통',low:'낮음'},PR={high:0,mid:1,low:2};
 const S={snap:null,planId:null,tab:'plan',q:'',fs:'',fp:'',ft:'',sort:'due',editPlan:null,editTask:null,metric:null,recs:null,keys:{},logKey:null,logTask:'',busy:false};
 const authClient=window.supabase.createClient(URL_,KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true,storageKey:'plando-auth'}});
 let authSession=null;
+let recoveryMode=location.hash.includes('type=recovery')||new URLSearchParams(location.search).get('type')==='recovery';
 async function rpc(fn,args={}){const {data,error}=await authClient.auth.getSession();if(error)throw error;authSession=data.session;if(!authSession)throw new Error('로그인이 필요합니다.');const r=await fetch(URL_+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+authSession.access_token,'Content-Type':'application/json'},body:JSON.stringify(args)});
  const t=await r.text();if(!r.ok){if(r.status===401){authSession=null;await authClient.auth.signOut();showAuth('login');throw new Error('로그인이 만료되었습니다. 다시 로그인해 주세요.')}throw new Error('서버 오류 ('+r.status+'): '+t.slice(0,160))}return t?JSON.parse(t):null}
 const el=(t,a={},...c)=>{const e=document.createElement(t);for(const[k,v]of Object.entries(a)){if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else if(k==='class')e.className=v;else if(v===true)e.setAttribute(k,'');else if(v!==false&&v!=null)e.setAttribute(k,v)}for(const x of c.flat())if(x!=null&&x!==false)e.append(x);return e};
@@ -64,6 +65,7 @@ function showAuth(mode='login',message=''){
   if(mode==='recovery'){
    const result=await authClient.auth.updateUser({password:passwordValue});
    if(result.error)throw result.error;
+   recoveryMode=false;
    await authClient.auth.signOut();
    showAuth('login');showErr(new Error('비밀번호를 변경했습니다. 새 비밀번호로 로그인해 주세요.'));
    return;
@@ -74,16 +76,16 @@ function showAuth(mode='login',message=''){
  }catch(err){showErr(err)}finally{submit.disabled=false}}},el('h2',{},mode==='signup'?'새 계정 만들기':mode==='forgot'?'비밀번호 재설정':mode==='recovery'?'새 비밀번호 설정':'로그인'),el('label',{for:'authEmail'},'이메일'),email,isForgot?null:el('label',{for:'authPassword'},mode==='recovery'?'새 비밀번호':'비밀번호'),isForgot?null:pass,el('div',{class:'row'},submit,el('button',{type:'button',onclick:()=>showAuth(mode==='signup'?'login':'signup')},mode==='signup'?'로그인으로 돌아가기':'새 계정 만들기'),mode==='login'?el('button',{type:'button',onclick:()=>showAuth('forgot')},'비밀번호 재설정'):null));
  view.append(form);if(message)showErr(new Error(message));
 }
-async function startApp(){const {data,error}=await authClient.auth.getSession();if(error)throw error;authSession=data.session;if(!authSession){showAuth('login');return}document.getElementById('pageTitle').textContent='플랜두씨 다이어리 2 · 계획 → 실제로 한 일 → 돌아보기';document.getElementById('pageNotice').textContent='로그인한 계정의 자료만 불러옵니다. 로그아웃하면 자료 화면으로 돌아갈 수 없습니다.';await load()}
+async function startApp(){if(recoveryMode){showAuth('recovery');showErr(new Error('새 비밀번호를 입력해 주세요.'));return}const {data,error}=await authClient.auth.getSession();if(error)throw error;authSession=data.session;if(recoveryMode){showAuth('recovery');showErr(new Error('새 비밀번호를 입력해 주세요.'));return}if(!authSession){showAuth('login');return}document.getElementById('pageTitle').textContent='플랜두씨 다이어리 2 · 계획 → 실제로 한 일 → 돌아보기';document.getElementById('pageNotice').textContent='로그인한 계정의 자료만 불러옵니다. 로그아웃하면 자료 화면으로 돌아갈 수 없습니다.';await load()}
 async function logout(){await authClient.auth.signOut();authSession=null;showAuth('login');showErr(new Error('로그아웃했습니다.'))}
 authClient.auth.onAuthStateChange((event,session)=>{
  authSession=session;
- if(event==='PASSWORD_RECOVERY'){showAuth('recovery');showErr(new Error('새 비밀번호를 입력해 주세요.'))}
- else if(event==='SIGNED_OUT')showAuth('login')
+ if(event==='PASSWORD_RECOVERY'){recoveryMode=true;showAuth('recovery');showErr(new Error('새 비밀번호를 입력해 주세요.'))}
+ else if(event==='SIGNED_OUT'&&!recoveryMode)showAuth('login')
 });
-async function boot(){const {data,error}=await authClient.auth.getSession();if(error)throw error;if(data.session){authSession=data.session;await startApp()}else showAuth('login')}
+async function boot(){if(recoveryMode){showAuth('recovery');showErr(new Error('새 비밀번호를 입력해 주세요.'));return}const {data,error}=await authClient.auth.getSession();if(error)throw error;if(recoveryMode){showAuth('recovery');showErr(new Error('새 비밀번호를 입력해 주세요.'));return}if(data.session){authSession=data.session;await startApp()}else showAuth('login')}
 async function act(fn){if(S.busy)return;S.busy=true;try{showErr(null);await fn()}catch(e){showErr(e)}finally{S.busy=false}}
-async function load(){S.snap=await rpc('pds_snapshot');if(!S.planId||!plan())S.planId=S.snap.plans[0]?.id||null;await render()}
+async function load(){S.snap=await rpc('pds_snapshot');if(recoveryMode){showAuth('recovery');showErr(new Error('새 비밀번호를 입력해 주세요.'));return}if(!S.planId||!plan())S.planId=S.snap.plans[0]?.id||null;await render()}
 function inp(id,label,type,val,extra={}){return el('div',{},el('label',{for:id},label),el(type==='textarea'?'textarea':'input',{id,type:type==='textarea'?null:type,value:type==='textarea'?null:val??'',...extra},type==='textarea'?(val??''):null))}
 function sel(id,label,opts,val){const s=el('select',{id},opts.map(([v,t])=>el('option',{value:v,selected:v===val},t)));return el('div',{},el('label',{for:id},label),s)}
 const v=id=>document.getElementById(id).value;
