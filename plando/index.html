@@ -63,6 +63,9 @@ function showAuth(mode='login',message=''){
    return;
   }
   if(mode==='recovery'){
+   const {data:sessionData,error:sessionError}=await authClient.auth.getSession();
+   if(sessionError)throw sessionError;
+   if(!sessionData.session)throw new Error('복구 링크 인증이 아직 완료되지 않았습니다. 이메일의 최신 재설정 링크를 다시 열어 주세요.');
    const result=await authClient.auth.updateUser({password:passwordValue});
    if(result.error)throw result.error;
    recoveryMode=false;
