@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>플랜두씨 다이어리 1</title>
+<style>
+:root{--bg:#f7f7f5;--fg:#1d1d1b;--mut:#6b6b66;--card:#fff;--bd:#dcdcd6;--ac:#2f5fd0;--warn:#fff3cd;--wfg:#664d03;--err:#b42318}
+@media(prefers-color-scheme:dark){:root{--bg:#161616;--fg:#eee;--mut:#a0a09a;--card:#222;--bd:#3a3a36;--ac:#7ea2f5;--warn:#3d3410;--wfg:#f1dc8a;--err:#f08a80}}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--fg)}
+main{max-width:860px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:8px 0}h2{font-size:17px;margin:16px 0 8px}
+.notice{background:var(--warn);color:var(--wfg);padding:10px 12px;border-radius:8px;font-weight:600}
+.err{color:var(--err);margin:8px 0}
+nav{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
+button,input,select,textarea{font:inherit;color:inherit}
+button{border:1px solid var(--bd);background:var(--card);border-radius:6px;padding:5px 10px;cursor:pointer}
+button.on,button.pri{background:var(--ac);color:#fff;border-color:var(--ac)}button:disabled{opacity:.5}
+input,select,textarea{border:1px solid var(--bd);background:var(--card);border-radius:6px;padding:5px 8px;max-width:100%}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin:8px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.mut{color:var(--mut);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.stat{text-align:left;padding:10px}.stat b{display:block;font-size:24px}
+label{display:block;margin:6px 0 2px;font-size:13px;color:var(--mut)}.f{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:4px 10px}
+.done{text-decoration:line-through;color:var(--mut)}.tag{background:var(--bd);border-radius:10px;padding:0 8px;font-size:12px}
+</style></head><body><main>
+<h1>플랜두씨 다이어리 1 · 계획 → 실제로 한 일 → 돌아보기</h1>
+<div class="notice">지금은 로그인이 없어 링크를 아는 사람은 누구나 볼 수 있습니다. 남이 봐도 괜찮은 내용만 넣으세요</div>
+<div id="err" class="err" role="alert"></div>
+<nav id="nav"></nav><div id="view">불러오는 중…</div>
+</main>
+<script>
+const URL_='https://hjuczlxovnghkljzygoz.supabase.co',KEY='sb_publishable_IGhfplhv5pb4QpsGPHKgWw_ef8Djp2Z';
+const PRI={high:'높음',mid:'보통',low:'낮음'},PR={high:0,mid:1,low:2};
+const S={snap:null,planId:null,tab:'plan',q:'',fs:'',fp:'',ft:'',sort:'due',editPlan:null,editTask:null,metric:null,recs:null,keys:{},logKey:null,logTask:'',busy:false};
+async function rpc(fn,args={}){const r=await fetch(URL_+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify(args)});
+ const t=await r.text();if(!r.ok)throw new Error('서버 오류 ('+r.status+'): '+t.slice(0,160));return t?JSON.parse(t):null}
+const el=(t,a={},...c)=>{const e=document.createElement(t);for(const[k,v]of Object.entries(a)){if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else if(k==='class')e.className=v;else if(v===true)e.setAttribute(k,'');else if(v!==false&&v!=null)e.setAttribute(k,v)}for(const x of c.flat())if(x!=null&&x!==false)e.append(x);return e};
+const rid=()=>crypto.randomUUID();
+const dt=i=>new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(i));
+const mins=m=>m+'분';
+const plan=()=>S.snap.plans.find(p=>p.id===S.planId);
+const tasks=()=>S.snap.tasks.filter(t=>t.plan_id===S.planId);
+const logsOf=t=>S.snap.logs.filter(l=>l.task_id===t);
+function showErr(e){document.getElementById('err').textContent=e?(e.message||String(e)):''}
+async function act(fn){if(S.busy)return;S.busy=true;try{showErr(null);await fn()}catch(e){showErr(e)}finally{S.busy=false}}
+async function load(){S.snap=await rpc('pds_snapshot');if(!S.planId||!plan())S.planId=S.snap.plans[0]?.id||null;await render()}
+function inp(id,label,type,val,extra={}){return el('div',{},el('label',{for:id},label),el(type==='textarea'?'textarea':'input',{id,type:type==='textarea'?null:type,value:type==='textarea'?null:val??'',...extra},type==='textarea'?(val??''):null))}
+function sel(id,label,opts,val){const s=el('select',{id},opts.map(([v,t])=>el('option',{value:v,selected:v===val},t)));return el('div',{},el('label',{for:id},label),s)}
+const v=id=>document.getElementById(id).value;
+
+async function render(){
+ const nav=document.getElementById('nav');nav.replaceChildren(
+  ...[['plan','1 계획'],['tasks','2 할 일'],['logs','3 실제로 한 일'],['review','4 돌아보기'],['export','5 내보내기']].map(([k,t])=>el('button',{class:S.tab===k?'on':'',onclick:()=>{S.tab=k;S.recs=null;S.metric=null;render()}},t)));
+ const view=document.getElementById('view');view.replaceChildren();
+ if(S.snap.plans.length>1)view.append(el('div',{class:'row'},el('label',{},'계획 선택'),el('select',{onchange:e=>{S.planId=e.target.value;S.recs=null;S.metric=null;render()}},S.snap.plans.map(p=>el('option',{value:p.id,selected:p.id===S.planId},p.title)))));
+ if(!plan()&&S.tab!=='plan'){view.append(el('p',{},'먼저 계획을 만드세요.'));return}
+ ({plan:vPlan,tasks:vTasks,logs:vLogs,review:vReview,export:vExport})[S.tab](view)}
+
+function vPlan(view){
+ const p=plan(),ed=S.editPlan;
+ if(p&&!ed){view.append(el('div',{class:'card'},el('h2',{},p.title),
+  el('div',{},`기간 ${p.start_date} ~ ${p.end_date} · 우선순위 ${PRI[p.priority]} · 예상 ${mins(p.estimated_minutes)}`),
+  el('div',{},'성공 기준: '+p.success_criteria),el('div',{class:'mut'},p.memo),
+  el('div',{class:'row'},el('button',{onclick:()=>{S.editPlan={...p};render()}},'계획 고치기'),el('button',{onclick:()=>{S.editPlan={};render()}},'새 계획'))));
+  const revs=S.snap.plan_revisions.filter(r=>r.plan_id===p.id);
+  view.append(el('h2',{},'수정 이력 (처음 계획부터 전부 남음)'),...revs.map(r=>el('div',{class:'card'},el('b',{},r.revision_no===1?'처음 계획':'수정 '+(r.revision_no-1)),` · ${dt(r.saved_at)}`,
+   el('div',{},`${r.title} / ${r.start_date}~${r.end_date} / ${PRI[r.priority]} / 예상 ${mins(r.estimated_minutes)}`),el('div',{class:'mut'},'성공 기준: '+r.success_criteria))));return}
+ const e=ed||{};
+ view.append(el('div',{class:'card'},el('h2',{},e.id?'계획 고치기':'새 계획'),el('div',{class:'f'},
+  inp('p_t','계획 이름','text',e.title,{maxlength:120}),inp('p_s','시작일','date',e.start_date),inp('p_e','종료일','date',e.end_date),
+  sel('p_p','우선순위',[['high','높음'],['mid','보통'],['low','낮음']],e.priority||'mid'),inp('p_m','예상 시간(분)','number',e.estimated_minutes,{min:0})),
+  inp('p_c','성공 기준','textarea',e.success_criteria,{maxlength:300,rows:2,style:'width:100%'}),inp('p_n','메모','textarea',e.memo,{maxlength:500,rows:2,style:'width:100%'}),
+  el('div',{class:'row'},el('button',{class:'pri',onclick:()=>act(async()=>{const id=await rpc('pds_save_plan',{p:{id:e.id||'',title:v('p_t'),start_date:v('p_s'),end_date:v('p_e'),priority:v('p_p'),success_criteria:v('p_c'),estimated_minutes:+v('p_m'),memo:v('p_n')}});S.planId=id;S.editPlan=null;await load()})},'저장'),
+  p?el('button',{onclick:()=>{S.editPlan=null;render()}},'취소'):null)))}
+
+const cmp={due:(a,b)=>a.due_date.localeCompare(b.due_date)||PR[a.priority]-PR[b.priority]||a.created_at.localeCompare(b.created_at),
+ pri:(a,b)=>PR[a.priority]-PR[b.priority]||a.due_date.localeCompare(b.due_date)||a.created_at.localeCompare(b.created_at),
+ est:(a,b)=>b.estimated_minutes-a.estimated_minutes||a.due_date.localeCompare(b.due_date)||a.created_at.localeCompare(b.created_at)};
+const SORTTXT={due:'마감일 빠른 순 → 같으면 우선순위 높은 순 → 같으면 등록 순',pri:'우선순위 높은 순 → 같으면 마감일 빠른 순 → 같으면 등록 순',est:'예상 시간 긴 순 → 같으면 마감일 빠른 순 → 같으면 등록 순'};
+function vTasks(view){
+ const all=tasks(),tags=[...new Set(all.flatMap(t=>t.tags))];
+ const rerender=()=>render();
+ view.append(el('div',{class:'card row'},
+  el('input',{type:'search',placeholder:'할 일 검색',value:S.q,oninput:e=>{S.q=e.target.value;list()},id:'q'}),
+  el('select',{onchange:e=>{S.fs=e.target.value;list()}},[['','상태 전체'],['todo','진행 중'],['done','완료']].map(([a,b])=>el('option',{value:a,selected:a===S.fs},b))),
+  el('select',{onchange:e=>{S.fp=e.target.value;list()}},[['','우선순위 전체'],['high','높음'],['mid','보통'],['low','낮음']].map(([a,b])=>el('option',{value:a,selected:a===S.fp},b))),
+  el('select',{onchange:e=>{S.ft=e.target.value;list()}},[['','태그 전체'],...tags.map(t=>[t,t])].map(([a,b])=>el('option',{value:a,selected:a===S.ft},b))),
+  el('select',{onchange:e=>{S.sort=e.target.value;list()}},[['due','마감일순'],['pri','우선순위순'],['est','예상 시간순']].map(([a,b])=>el('option',{value:a,selected:a===S.sort},b)))));
+ const info=el('div',{class:'mut'}),box=el('div',{});view.append(info,box);
+ const form=S.editTask;
+ view.append(el('div',{class:'card'},el('h2',{},form&&form.id?'할 일 고치기':'할 일 만들기'),el('div',{class:'f'},
+  inp('t_t','할 일','text',form?.title,{maxlength:120}),inp('t_d','마감일','date',form?.due_date),sel('t_p','우선순위',[['high','높음'],['mid','보통'],['low','낮음']],form?.priority||'mid'),
+  inp('t_g','태그(쉼표로 구분)','text',(form?.tags||[]).join(',')),inp('t_m','예상 시간(분)','number',form?.estimated_minutes,{min:0})),
+  el('div',{class:'row'},el('button',{class:'pri',onclick:()=>act(async()=>{await rpc('pds_save_task',{p:{id:form?.id||'',plan_id:S.planId,title:v('t_t'),due_date:v('t_d'),priority:v('t_p'),tags:v('t_g').split(',').map(s=>s.trim()).filter(Boolean),estimated_minutes:+v('t_m')}});S.editTask=null;await load()})},'저장'),
+  form?el('button',{onclick:()=>{S.editTask=null;rerender()}},'취소'):null)));
+ function list(){
+  const q=S.q.trim().toLowerCase();
+  const rows=all.filter(t=>(!q||(t.title+' '+t.tags.join(' ')).toLowerCase().includes(q))&&(!S.fs||t.status===S.fs)&&(!S.fp||t.priority===S.fp)&&(!S.ft||t.tags.includes(S.ft))).sort(cmp[S.sort]);
+  info.textContent=`정렬 기준: ${SORTTXT[S.sort]}. 검색·거르기·정렬은 서버에서 받아 온 자료를 이 화면에서 처리합니다. (${rows.length}/${all.length}건)`;
+  box.replaceChildren(...rows.map(t=>el('div',{class:'card'},el('div',{class:'row'},el('b',{class:t.status==='done'?'done':''},t.title),el('span',{class:'mut'},t.status==='done'?'완료':'진행 중')),
+   el('div',{class:'mut'},`마감 ${t.due_date} · 우선순위 ${PRI[t.priority]} · 예상 ${mins(t.estimated_minutes)}`),el('div',{class:'row'},t.tags.map(g=>el('span',{class:'tag'},g))),
+   el('div',{class:'row'},
+    t.status==='done'?el('button',{onclick:()=>act(async()=>{await rpc('pds_reopen_task',{tid:t.id});delete S.keys[t.id];await load()})},'진행 중으로 되돌리기')
+     :el('button',{onclick:()=>act(async()=>{S.keys[t.id]=S.keys[t.id]||rid();await rpc('pds_complete_task',{tid:t.id,ikey:S.keys[t.id]});await load()})},'완료로 바꾸기'),
+    el('button',{onclick:()=>{S.editTask=t;render();scrollTo(0,document.body.scrollHeight)}},'고치기'),
+    el('button',{onclick:()=>{S.logTask=t.id;S.tab='logs';render()}},'기록 쓰기'),
+    el('button',{onclick:()=>{if(confirm('이 할 일을 지울까요?'))act(async()=>{await rpc('pds_delete_task',{tid:t.id});await load()})}},'지우기')))));
+  if(!rows.length)box.append(el('p',{class:'mut'},'조건에 맞는 할 일이 없습니다.'))}
+ list()}
+
+function vLogs(view){
+ const ts=tasks();if(!S.logKey)S.logKey=rid();
+ const calc=()=>{const a=v('l_s'),b=v('l_e');if(a&&b){const m=Math.round((new Date(b+':00+09:00')-new Date(a+':00+09:00'))/60000);document.getElementById('l_m').value=m>=0?m:''}};
+ view.append(el('div',{class:'card'},el('h2',{},'실제로 한 일 적기'),el('div',{class:'mut'},'원래 계획·예상 시간은 바뀌지 않고, 실제 기록은 따로 쌓입니다. 시각은 서울(KST) 기준입니다.'),
+  el('div',{class:'f'},sel('l_t','어느 할 일의 기록인가요',ts.map(t=>[t.id,t.title]),S.logTask||ts[0]?.id),inp('l_s','시작 시각','datetime-local',''),inp('l_e','끝난 시각','datetime-local',''),inp('l_m','실제로 걸린 시간(분)','number','',{min:0}),inp('l_b','막혔던 이유 (없으면 비워 두기)','text','',{maxlength:300}),inp('l_n','메모','text','',{maxlength:300})),
+  el('div',{class:'row'},el('button',{class:'pri',onclick:()=>act(async()=>{await rpc('pds_add_log',{p:{task_id:v('l_t'),started_at:v('l_s')+':00+09:00',ended_at:v('l_e')+':00+09:00',actual_minutes:+v('l_m'),blocked_reason:v('l_b'),note:v('l_n'),idempotency_key:S.logKey}});S.logKey=null;await load()})},'기록 저장'))));
+ setTimeout(()=>{['l_s','l_e'].forEach(i=>document.getElementById(i)?.addEventListener('change',calc))});
+ const ids=new Set(ts.map(t=>t.id)),ls=S.snap.logs.filter(l=>ids.has(l.task_id));
+ view.append(el('h2',{},`실행 기록 ${ls.length}건`),...ls.map(l=>{const t=ts.find(x=>x.id===l.task_id);return el('div',{class:'card'},el('b',{},t.title),
+  el('div',{},`${dt(l.started_at)} → ${dt(l.ended_at)} · 실제 ${mins(l.actual_minutes)} (계획 예상 ${mins(t.estimated_minutes)}, 변하지 않음)`),
+  l.blocked_reason?el('div',{},'막힌 이유: '+l.blocked_reason):el('div',{class:'mut'},'막힌 이유 없음'),l.note?el('div',{class:'mut'},l.note):null)}))}
+
+async function vReview(view){
+ const r=await rpc('pds_review',{pid:S.planId});
+ const M=[['plan','계획 수',r.plan_count,'지우지 않은 할 일 수'],['done','완료 수',r.done_count,'지금 완료 상태인 할 일'],['delayed','지연 수',r.delayed_count,'미완료이고 마감일이 서울 오늘('+r.today+')보다 앞'],['blocked','막힘 수',r.blocked_count,'막힌 이유가 적힌 할 일'],
+  ['expected','예상 시간',mins(r.estimated_minutes),'할 일 예상 시간 합계'],['actual','실제 시간',mins(r.actual_minutes),'실행 기록 합계'],['diff','차이',(r.diff_minutes>0?'+':'')+r.diff_minutes+'분','실제 − 예상']];
+ view.append(el('h2',{},'돌아보기 · '+plan().title),el('div',{class:'mut'},'숫자를 누르면 그 숫자가 나온 기록이 아래에 나옵니다.'),
+  el('div',{class:'grid'},M.map(([k,n,val,d])=>el('button',{class:'stat'+(S.metric===k?' on':''),onclick:()=>act(async()=>{S.metric=k;S.recs=await rpc('pds_review_records',{pid:S.planId,metric:k});await render()})},n,el('b',{},val),el('span',{class:'mut'},d)))));
+ if(S.recs){const nm=M.find(m=>m[0]===S.metric)[1];view.append(el('h2',{},`'${nm}'의 근거 기록 ${S.recs.length}건`),
+  ...S.recs.map(t=>{const a=t.logs.reduce((s,l)=>s+l.actual_minutes,0);return el('div',{class:'card'},el('b',{},t.title),el('div',{class:'mut'},`마감 ${t.due_date} · ${t.status==='done'?'완료':'진행 중'} · 예상 ${mins(t.estimated_minutes)} · 실제 ${mins(a)}`),
+   ...t.logs.map(l=>el('div',{},`· ${dt(l.started_at)}~${dt(l.ended_at)} ${mins(l.actual_minutes)}`+(l.blocked_reason?' / 막힘: '+l.blocked_reason:''))))}))}
+ const note=S.snap.review_notes.find(n=>n.plan_id===S.planId);
+ view.append(el('div',{class:'card'},el('h2',{},'고칠 점 한 줄 → 다음 계획'),
+  note?el('div',{},'넘긴 한 줄: '+note.fix_text+' (다음 계획으로 이미 넘어감)'):el('div',{},inp('fx','다음 계획으로 넘길 고칠 점 한 가지','text','',{maxlength:200,style:'width:100%'}),
+   el('button',{class:'pri',onclick:()=>act(async()=>{const fx=v('fx').trim();if(!fx)throw new Error('고칠 점을 한 줄 적어 주세요');const d=new Date(r.today+'T00:00:00Z'),e=new Date(d.getTime()+6*864e5);
+    const id=await rpc('pds_carry_fix',{pid:S.planId,fix:fx,np:{title:'다음 계획: '+fx.slice(0,60),start_date:r.today,end_date:e.toISOString().slice(0,10),priority:'high',success_criteria:fx,estimated_minutes:0}});S.planId=id;S.tab='plan';await load()})},'다음 계획으로 넘기기'))))}
+
+function vExport(view){view.append(el('div',{class:'card'},el('h2',{},'내 자료 전체 내보내기'),el('div',{class:'mut'},'계획·수정 이력·할 일·실행 기록·완료·돌아보기 메모를 JSON 파일 하나로 받습니다.'),
+ el('button',{class:'pri',onclick:()=>act(async()=>{const s=await rpc('pds_snapshot');const a=el('a',{href:URL.createObjectURL(new Blob([JSON.stringify(s,null,2)],{type:'application/json'})),download:'plando-diary-export.json'});document.body.append(a);a.click();a.remove()})},'JSON 파일 내보내기')))}
+load().catch(e=>{showErr(e);document.getElementById('view').textContent='자료를 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.'});
+</script></body></html>
