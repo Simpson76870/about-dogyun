@@ -1,4 +1,3 @@
-```
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>플랜두씨 다이어리 2</title>
@@ -32,7 +31,7 @@ label{display:block;margin:6px 0 2px;font-size:13px;color:var(--mut)}.f{display:
 const URL_='https://hjuczlxovnghkljzygoz.supabase.co',KEY='sb_publishable_IGhfplhv5pb4QpsGPHKgWw_ef8Djp2Z';
 const PRI={high:'높음',mid:'보통',low:'낮음'},PR={high:0,mid:1,low:2};
 const S={snap:null,planId:null,tab:'plan',q:'',fs:'',fp:'',ft:'',sort:'due',editPlan:null,editTask:null,metric:null,recs:null,keys:{},logKey:null,logTask:'',busy:false};
-const authClient=window.supabase.createClient(URL_,KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:false,storageKey:'plando-auth'}});
+const authClient=window.supabase.createClient(URL_,KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true,storageKey:'plando-auth'}});
 let authSession=null;
 async function rpc(fn,args={}){const {data,error}=await authClient.auth.getSession();if(error)throw error;authSession=data.session;if(!authSession)throw new Error('로그인이 필요합니다.');const r=await fetch(URL_+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+authSession.access_token,'Content-Type':'application/json'},body:JSON.stringify(args)});
  const t=await r.text();if(!r.ok){if(r.status===401){authSession=null;await authClient.auth.signOut();showAuth('login');throw new Error('로그인이 만료되었습니다. 다시 로그인해 주세요.')}throw new Error('서버 오류 ('+r.status+'): '+t.slice(0,160))}return t?JSON.parse(t):null}
@@ -48,14 +47,40 @@ function showAuth(mode='login',message=''){
  authSession=null;document.getElementById('pageTitle').textContent='플랜두씨 다이어리 2 · '+(mode==='signup'?'회원가입':'로그인');document.getElementById('pageNotice').textContent='로그인 전에는 계획·할 일·실행 기록을 요청하지 않습니다.';
  document.getElementById('nav').replaceChildren();const view=document.getElementById('view');view.replaceChildren();showErr(null);
  const email=el('input',{id:'authEmail',type:'email',autocomplete:'email',required:true,maxlength:254,placeholder:'이메일'});
- const pass=el('input',{id:'authPassword',type:'password',autocomplete:mode==='signup'?'new-password':'current-password',required:true,minlength:mode==='signup'?8:1,placeholder:mode==='signup'?'비밀번호 (8자 이상)':'비밀번호'});
- const submit=el('button',{class:'pri',type:'submit'},mode==='signup'?'가입하기':'로그인');
- const form=el('form',{class:'card',onsubmit:async e=>{e.preventDefault();showErr(null);submit.disabled=true;try{const emailValue=email.value.trim(),passwordValue=pass.value;if(!emailValue||!passwordValue)throw new Error('이메일과 비밀번호를 입력해 주세요.');if(mode==='signup'&&passwordValue.length<8)throw new Error('비밀번호는 8자 이상이어야 합니다.');const result=mode==='signup'?await authClient.auth.signUp({email:emailValue,password:passwordValue}):await authClient.auth.signInWithPassword({email:emailValue,password:passwordValue});if(result.error){if(mode==='login')throw new Error('이메일 또는 비밀번호가 맞지 않습니다.');throw new Error('가입을 진행할 수 없습니다. 입력값을 확인하거나 로그인해 주세요.')}if(result.data.session){authSession=result.data.session;await startApp()}else{showAuth('login');showErr(new Error('가입 요청을 처리했습니다. 로그인해 주세요.'))}}catch(err){showErr(err)}finally{submit.disabled=false}}},el('h2',{},mode==='signup'?'새 계정 만들기':'로그인'),el('label',{for:'authEmail'},'이메일'),email,el('label',{for:'authPassword'},'비밀번호'),pass,el('div',{class:'row'},submit,el('button',{type:'button',onclick:()=>showAuth(mode==='signup'?'login':'signup')},mode==='signup'?'로그인으로 돌아가기':'새 계정 만들기')));
+ const isPasswordEntry=mode==='signup'||mode==='recovery',isForgot=mode==='forgot';
+ const pass=el('input',{id:'authPassword',type:'password',autocomplete:isPasswordEntry?'new-password':'current-password',required:!isForgot,minlength:isPasswordEntry?8:1,placeholder:mode==='recovery'?'새 비밀번호 (8자 이상)':mode==='signup'?'비밀번호 (8자 이상)':'비밀번호'});
+ const submit=el('button',{class:'pri',type:'submit'},mode==='signup'?'가입하기':mode==='forgot'?'재설정 메일 보내기':mode==='recovery'?'새 비밀번호 저장':'로그인');
+ const form=el('form',{class:'card',onsubmit:async e=>{e.preventDefault();showErr(null);submit.disabled=true;try{
+  const emailValue=email.value.trim(),passwordValue=pass.value;
+  if(!emailValue)throw new Error('이메일을 입력해 주세요.');
+  if(!isForgot&&!passwordValue)throw new Error('비밀번호를 입력해 주세요.');
+  if(isPasswordEntry&&passwordValue.length<8)throw new Error('비밀번호는 8자 이상이어야 합니다.');
+  if(mode==='forgot'){
+   const result=await authClient.auth.resetPasswordForEmail(emailValue,{redirectTo:location.origin+location.pathname});
+   if(result.error)throw result.error;
+   showAuth('login');showErr(new Error('비밀번호 재설정 메일을 요청했습니다. 새로 도착한 메일의 링크를 열어 주세요.'));
+   return;
+  }
+  if(mode==='recovery'){
+   const result=await authClient.auth.updateUser({password:passwordValue});
+   if(result.error)throw result.error;
+   await authClient.auth.signOut();
+   showAuth('login');showErr(new Error('비밀번호를 변경했습니다. 새 비밀번호로 로그인해 주세요.'));
+   return;
+  }
+  const result=mode==='signup'?await authClient.auth.signUp({email:emailValue,password:passwordValue}):await authClient.auth.signInWithPassword({email:emailValue,password:passwordValue});
+  if(result.error){if(mode==='login')throw new Error('이메일 또는 비밀번호가 맞지 않습니다.');throw new Error('가입을 진행할 수 없습니다. 입력값을 확인하거나 로그인해 주세요.')}
+  if(result.data.session){authSession=result.data.session;await startApp()}else{showAuth('login');showErr(new Error('가입 요청을 처리했습니다. 로그인해 주세요.'))}
+ }catch(err){showErr(err)}finally{submit.disabled=false}}},el('h2',{},mode==='signup'?'새 계정 만들기':mode==='forgot'?'비밀번호 재설정':mode==='recovery'?'새 비밀번호 설정':'로그인'),el('label',{for:'authEmail'},'이메일'),email,isForgot?null:el('label',{for:'authPassword'},mode==='recovery'?'새 비밀번호':'비밀번호'),isForgot?null:pass,el('div',{class:'row'},submit,el('button',{type:'button',onclick:()=>showAuth(mode==='signup'?'login':'signup')},mode==='signup'?'로그인으로 돌아가기':'새 계정 만들기'),mode==='login'?el('button',{type:'button',onclick:()=>showAuth('forgot')},'비밀번호 재설정'):null));
  view.append(form);if(message)showErr(new Error(message));
 }
 async function startApp(){const {data,error}=await authClient.auth.getSession();if(error)throw error;authSession=data.session;if(!authSession){showAuth('login');return}document.getElementById('pageTitle').textContent='플랜두씨 다이어리 2 · 계획 → 실제로 한 일 → 돌아보기';document.getElementById('pageNotice').textContent='로그인한 계정의 자료만 불러옵니다. 로그아웃하면 자료 화면으로 돌아갈 수 없습니다.';await load()}
 async function logout(){await authClient.auth.signOut();authSession=null;showAuth('login');showErr(new Error('로그아웃했습니다.'))}
-authClient.auth.onAuthStateChange((event,session)=>{authSession=session;if(event==='SIGNED_OUT')showAuth('login')});
+authClient.auth.onAuthStateChange((event,session)=>{
+ authSession=session;
+ if(event==='PASSWORD_RECOVERY'){showAuth('recovery');showErr(new Error('새 비밀번호를 입력해 주세요.'))}
+ else if(event==='SIGNED_OUT')showAuth('login')
+});
 async function boot(){const {data,error}=await authClient.auth.getSession();if(error)throw error;if(data.session){authSession=data.session;await startApp()}else showAuth('login')}
 async function act(fn){if(S.busy)return;S.busy=true;try{showErr(null);await fn()}catch(e){showErr(e)}finally{S.busy=false}}
 async function load(){S.snap=await rpc('pds_snapshot');if(!S.planId||!plan())S.planId=S.snap.plans[0]?.id||null;await render()}
@@ -155,4 +180,3 @@ function vExport(view){view.append(el('div',{class:'card'},el('h2',{},'내 자�
 async function vAccount(view){const {data,error}=await authClient.auth.getUser();if(error)throw error;const email=data.user?.email||'';view.append(el('div',{class:'card'},el('h2',{},'계정 관리'),el('p',{},'현재 로그인: '+email),el('p',{},'계정 삭제를 실행하면 이 계정의 다이어리 자료도 함께 삭제됩니다. 복구할 수 없습니다. 실제 계정이 아닌 시험 계정으로 먼저 확인하세요.'),el('label',{for:'deleteEmail'},'확인을 위해 현재 계정 이메일을 입력하세요'),el('input',{id:'deleteEmail',type:'email',autocomplete:'off',placeholder:'현재 계정 이메일'}),el('div',{class:'row'},el('button',{onclick:()=>act(async()=>{const typed=v('deleteEmail').trim().toLowerCase();if(!email||typed!==email.toLowerCase())throw new Error('현재 계정 이메일이 일치하지 않습니다.');if(!confirm('이 계정과 모든 다이어리 자료를 영구 삭제할까요?'))return;await rpc('pds_delete_my_account');try{await authClient.auth.signOut()}catch(e){}authSession=null;showAuth('login');showErr(new Error('계정 삭제 요청을 처리했습니다.'))})},'계정과 자료 영구 삭제'))))}
 boot().catch(e=>{showErr(e);document.getElementById('view').textContent='인증을 시작하지 못했습니다. 잠시 뒤 새로고침해 주세요.'});
 </script></body></html>
-```
