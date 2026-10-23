@@ -28,12 +28,12 @@ async function currentCredentials(page, accountId) {
 }
 async function logout(page) {
   await page.locator("#passkey-logout").click();
-  await page.waitForFunction(()=>!sessionStorage.getItem("passkey_demo_session"));
+  await page.waitForFunction(()=>!sessionStorage.getItem("passkey_demo_session"),null,{timeout:20000});
 }
 async function login(page, accountId) {
   await page.locator("#passkey-account").selectOption(accountId);
   await page.locator("#passkey-login").click();
-  await page.waitForFunction(()=>document.querySelector("#passkey-private-content")?.hidden===false,{timeout:20000});
+  await page.waitForFunction(()=>document.querySelector("#passkey-private-content")?.hidden===false,null,{timeout:20000});
   const status=await page.locator("#passkey-status").textContent();
   if(!status.includes("성공")) throw new Error("login status: "+status);
 }
@@ -70,7 +70,7 @@ try {
     await page.locator("#passkey-account").selectOption("demo-a");
     await page.locator("#passkey-name").fill("CI 가상 인증기 A-1");
     await page.locator("#passkey-register").click();
-    await page.waitForFunction(()=>document.querySelector("#passkey-private-content")?.hidden===false,{timeout:30000});
+    await page.waitForFunction(()=>document.querySelector("#passkey-private-content")?.hidden===false,null,{timeout:30000});
     const data=await pageFetch(page,"/private",{token:await sessionToken(page)});
     if(data.status!==200 || data.body.items?.length!==3) throw new Error("private content did not load: "+JSON.stringify({status:data.status,count:data.body.items?.length}));
     const creds=await currentCredentials(page,"demo-a");
