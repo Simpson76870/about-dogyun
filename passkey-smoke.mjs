@@ -43,10 +43,17 @@ await check("Untrusted browser origin is rejected", async () => {
   return "403 origin_not_allowed";
 });
 await check("Public HTML contains no private seed content", async () => {
-  const response = await fetch(PAGE,{cache:"no-store"});
-  if (!response.ok) throw new Error("page HTTP " + response.status);
-  const html = await response.text();
-  if (!html.includes('id="passkey-private"')) throw new Error("Passkey UI missing");
+  let html = "";
+  let lastStatus = 0;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const response = await fetch(PAGE,{cache:"no-store"});
+    lastStatus = response.status;
+    html = await response.text();
+    if (response.ok && html.includes('id="passkey-private"')) break;
+    await new Promise(resolve => setTimeout(resolve, 5000));
+  }
+  if (lastStatus < 200 || lastStatus >= 300) throw new Error("page HTTP " + lastStatus);
+  if (!html.includes('id="passkey-private"')) throw new Error("Passkey UI missing after waiting for Pages deployment");
   if (html.includes("가상 보안 실습 환경에서 인증 흐름과 접근 통제를 점검합니다.") || html.includes("계정 B 전용 더미 자료입니다.")) throw new Error("Private data leaked into static HTML");
   return "public page loaded; private seed text absent";
 });
