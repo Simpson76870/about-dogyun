@@ -46,6 +46,7 @@ const {authenticatorId} = await cdp.send("WebAuthn.addVirtualAuthenticator",{opt
   protocol:"ctap2",transport:"internal",hasResidentKey:true,hasUserVerification:true,
   isUserVerified:true,automaticPresenceSimulation:true
 }});
+let backupContext, backupPage, backupCdp, backupAuthenticatorId;
 try {
   await assert("Public introduction loads without login",async()=>{
     let ok=false;
@@ -78,13 +79,34 @@ try {
     return "WebAuthn registration verified; 3 private items returned; server credential count=1";
   });
 
-  await assert("Register second named passkey for account A",async()=>{
+  await assert("Register second named passkey for account A on a second authenticator",async()=>{
     const token=await sessionToken(page);
-    const start=await pageFetch(page,"/registration/options",{method:"POST",body:{accountId:"demo-a",name:"CI 가상 인증기 A-2"},token});
+    backupContext=await browser.newContext();
+    backupPage=await backupContext.newPage();
+    backupCdp=await context.browser().newBrowserCDPSession?.(backupPage).catch(()=>null);
+    if (!backupCdp) backupCdp=await backupContext.newCDPSession?.(backupPage).catch(()=>null);
+    if (!backupCdp) backupCdp=await browser.newBrowserCDPSession?.(backupPage).catch(()=>null);
+    if (!backupCdp) {
+      backupCdp=await browser.newContext().then(()=>null).catch(()=>null);
+    }
+    // A second browser context has its own authenticator storage, modeling a second device.
+    const backupSession=await browser.newContext();
+    const backupPage2=await backupSession.newPage();
+    const backupCdp2=await backupSession.newCDPSession?.(backupPage2).catch(()=>null);
+    // Playwright exposes CDP sessions from the browser context via the browser's CDP connection.
+    const secondCdp=await browser.newContext().then(async()=>null).catch(()=>null);
+    if (!backupCdp2 && !secondCdp) throw new Error("unable to create second WebAuthn authenticator session");
+    await backupPage2.goto(PAGE,{waitUntil:"domcontentloaded"});
+    const {authenticatorId:secondAuthenticatorId}=await secondCdp.send("WebAuthn.addVirtualAuthenticator",{options:{
+      protocol:"ctap2",transport:"internal",hasResidentKey:true,hasUserVerification:true,
+      isUserVerified:true,automaticPresenceSimulation:true
+    }});
+    backupAuthenticatorId=secondAuthenticatorId;
+    const start=await pageFetch(backupPage2,"/registration/options",{method:"POST",body:{accountId:"demo-a",name:"CI 가상 인증기 A-2"},token});
     if(start.status!==200) throw new Error("second registration options status "+start.status);
-    const response=await page.evaluate(async({options})=>{
+    const response=await backupPage2.evaluate(async({options})=>{
       const from=(v)=>{const s=v.replace(/-/g,"+").replace(/_/g,"/")+"=".repeat((4-v.length%4)%4);return Uint8Array.from(atob(s),c=>c.charCodeAt(0));};
-      const to=(v)=>{let s="";for(const b of new Uint8Array(v))s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");};
+      const to=(v)=>{let s="";for(const b of new Uint8Array(v))s+=String.fromCharCode(b);return btoa(s).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/g,"");};
       options.challenge=from(options.challenge);
       options.user.id=from(options.user.id);
       options.excludeCredentials=(options.excludeCredentials||[]).map(x=>({...x,id:from(x.id)}));
@@ -94,10 +116,8 @@ try {
         transports:c.response.getTransports?c.response.getTransports():[]
       }};
     },{options:start.body.options});
-    const verified=await pageFetch(page,"/registration/verify",{method:"POST",body:{accountId:"demo-a",name:"CI 가상 인증기 A-2",challenge:start.body.options.challenge,response},token});
+    const verified=await pageFetch(backupPage2,"/registration/verify",{method:"POST",body:{accountId:"demo-a",name:"CI 가상 인증기 A-2",challenge:start.body.options.challenge,response},token});
     if(verified.status!==200) throw new Error("second registration verify status "+verified.status);
-    await logout(page);
-    await login(page,"demo-a");
     const creds=await currentCredentials(page,"demo-a");
     if(creds.length!==2 || !creds.every(x=>x.name && x.createdAt && x.publicKey)) throw new Error("two named public-key credentials not present");
     return {credentialCount:creds.length,credentials:creds.map(x=>({name:x.name,publicKey:x.publicKey,createdAt:x.createdAt}))};
@@ -186,7 +206,7 @@ try {
     await login(page,"demo-a");
     const creds=await currentCredentials(page,"demo-a");
     if(creds.length!==2) throw new Error("expected 2 credentials before delete");
-    const deleted=creds[0];
+    const deleted=creds[1];
     const token=await sessionToken(page);
     const del=await pageFetch(page,"/credentials/delete",{method:"POST",body:{credentialId:deleted.id},token});
     if(del.status!==200) throw new Error("delete status "+del.status);
@@ -227,6 +247,8 @@ try {
 
 } finally {
   await cdp.send("WebAuthn.removeVirtualAuthenticator",{authenticatorId}).catch(()=>{});
+  if (backupCdp && backupAuthenticatorId) await backupCdp.send("WebAuthn.removeVirtualAuthenticator",{authenticatorId:backupAuthenticatorId}).catch(()=>{});
+  await backupContext?.close().catch(()=>{});
   await browser.close();
 }
 console.log(JSON.stringify({total:results.length,passed:results.filter(r=>r.ok).length,failed:results.filter(r=>!r.ok).length,results},null,2));
