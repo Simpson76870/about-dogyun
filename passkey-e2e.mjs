@@ -83,28 +83,17 @@ try {
     const token=await sessionToken(page);
     backupContext=await browser.newContext();
     backupPage=await backupContext.newPage();
-    backupCdp=await context.browser().newBrowserCDPSession?.(backupPage).catch(()=>null);
-    if (!backupCdp) backupCdp=await backupContext.newCDPSession?.(backupPage).catch(()=>null);
-    if (!backupCdp) backupCdp=await browser.newBrowserCDPSession?.(backupPage).catch(()=>null);
-    if (!backupCdp) {
-      backupCdp=await browser.newContext().then(()=>null).catch(()=>null);
-    }
-    // A second browser context has its own authenticator storage, modeling a second device.
-    const backupSession=await browser.newContext();
-    const backupPage2=await backupSession.newPage();
-    const backupCdp2=await backupSession.newCDPSession?.(backupPage2).catch(()=>null);
-    // Playwright exposes CDP sessions from the browser context via the browser's CDP connection.
-    const secondCdp=await browser.newContext().then(async()=>null).catch(()=>null);
-    if (!backupCdp2 && !secondCdp) throw new Error("unable to create second WebAuthn authenticator session");
-    await backupPage2.goto(PAGE,{waitUntil:"domcontentloaded"});
-    const {authenticatorId:secondAuthenticatorId}=await secondCdp.send("WebAuthn.addVirtualAuthenticator",{options:{
+    backupCdp=await backupContext.newCDPSession(backupPage);
+    await backupCdp.send("WebAuthn.enable");
+    const second=await backupCdp.send("WebAuthn.addVirtualAuthenticator",{options:{
       protocol:"ctap2",transport:"internal",hasResidentKey:true,hasUserVerification:true,
       isUserVerified:true,automaticPresenceSimulation:true
     }});
-    backupAuthenticatorId=secondAuthenticatorId;
-    const start=await pageFetch(backupPage2,"/registration/options",{method:"POST",body:{accountId:"demo-a",name:"CI 가상 인증기 A-2"},token});
+    backupAuthenticatorId=second.authenticatorId;
+    await backupPage.goto(PAGE,{waitUntil:"domcontentloaded"});
+    const start=await pageFetch(backupPage,"/registration/options",{method:"POST",body:{accountId:"demo-a",name:"CI 가상 인증기 A-2"},token});
     if(start.status!==200) throw new Error("second registration options status "+start.status);
-    const response=await backupPage2.evaluate(async({options})=>{
+    const response=await backupPage.evaluate(async({options})=>{
       const from=(v)=>{const s=v.replace(/-/g,"+").replace(/_/g,"/")+"=".repeat((4-v.length%4)%4);return Uint8Array.from(atob(s),c=>c.charCodeAt(0));};
       const to=(v)=>{let s="";for(const b of new Uint8Array(v))s+=String.fromCharCode(b);return btoa(s).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/g,"");};
       options.challenge=from(options.challenge);
@@ -116,7 +105,7 @@ try {
         transports:c.response.getTransports?c.response.getTransports():[]
       }};
     },{options:start.body.options});
-    const verified=await pageFetch(backupPage2,"/registration/verify",{method:"POST",body:{accountId:"demo-a",name:"CI 가상 인증기 A-2",challenge:start.body.options.challenge,response},token});
+    const verified=await pageFetch(backupPage,"/registration/verify",{method:"POST",body:{accountId:"demo-a",name:"CI 가상 인증기 A-2",challenge:start.body.options.challenge,response},token});
     if(verified.status!==200) throw new Error("second registration verify status "+verified.status);
     const creds=await currentCredentials(page,"demo-a");
     if(creds.length!==2 || !creds.every(x=>x.name && x.createdAt && x.publicKey)) throw new Error("two named public-key credentials not present");
