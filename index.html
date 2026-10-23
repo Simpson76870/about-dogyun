@@ -437,7 +437,8 @@ allow="autoplay">
     if (!name) { status("패스키 이름을 입력하세요."); return; }
     try {
       status("서버에서 새 등록 challenge를 요청했습니다. 기기의 패스키 창에서 확인하세요.");
-      const hasSession = !!sessionStorage.getItem(tokenKey);\n      const start = await api("/registration/options", {method:"POST",auth:hasSession,body:{accountId,name}});
+      const hasSession = !!sessionStorage.getItem(tokenKey);
+      const start = await api("/registration/options", {method:"POST",auth:hasSession,body:{accountId,name}});
       const credential = await navigator.credentials.create({publicKey:prepareCreationOptions(start.options)});
       if (!credential) { status("패스키 등록이 취소되었습니다. credential은 저장되지 않았습니다."); return; }
       const verified = await api("/registration/verify", {
