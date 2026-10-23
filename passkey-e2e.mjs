@@ -90,7 +90,7 @@ try {
     },API,{timeout:30000});
     const creds=await currentCredentials(page,"demo-a");
     if(creds.length!==2 || !creds.every(c=>c.name && c.createdAt)) throw new Error("two named credentials not present");
-    return "two credentials with names and registration dates";
+    return {credentialCount:creds.length,credentials:creds.map(c=>({name:c.name,publicKey:c.publicKey,createdAt:c.createdAt}))};
   });
 
   await assert("Challenge replay is rejected",async()=>{
