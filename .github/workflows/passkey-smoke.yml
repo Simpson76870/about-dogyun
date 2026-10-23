@@ -2,9 +2,6 @@ name: passkey-smoke-tests
 on:
   push:
     branches: [main]
-  workflow_run:
-    workflows: ["pages build and deployment"]
-    types: [completed]
   workflow_dispatch:
 permissions:
   contents: read
