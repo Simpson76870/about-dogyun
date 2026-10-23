@@ -38,12 +38,12 @@ await check("Authentication challenges are unique when credentials exist", async
     if (a.status !== 200) throw new Error(JSON.stringify({accountId,response:a}));
     const b = await call();
     if (b.status !== 200 || !a.body.options?.challenge || !b.body.options?.challenge || a.body.options.challenge === b.body.options.challenge) throw new Error("Authentication challenge missing or repeated");
-    return accountId + ": two distinct login challenges";
+    return {accountId, challengeA: a.body.options.challenge.slice(0,8) + "…", challengeB: b.body.options.challenge.slice(0,8) + "…", distinct: true};
   }
   const call = () => request("/registration/options", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({accountId:"demo-a",name:"CI smoke test"})});
   const [a,b] = await Promise.all([call(),call()]);
   if (a.status !== 200 || b.status !== 200 || !a.body.options?.challenge || !b.body.options?.challenge || a.body.options.challenge === b.body.options.challenge) throw new Error(JSON.stringify({a,b}));
-  return "demo-a: two distinct registration challenges";
+  return {accountId:"demo-a", challengeA:a.body.options.challenge.slice(0,8) + "…", challengeB:b.body.options.challenge.slice(0,8) + "…", distinct:true};
 });
 await check("Cancelled registration removes its pending challenge", async () => {
   const start = await request("/registration/options", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({accountId:"demo-a",name:"CI cancellation test"})});
