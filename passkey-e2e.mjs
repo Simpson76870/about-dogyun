@@ -93,6 +93,13 @@ try {
     return {credentialCount:creds.length,credentials:creds.map(c=>({name:c.name,publicKey:c.publicKey,createdAt:c.createdAt}))};
   });
 
+  await assert("Authentication challenges are unique",async()=>{
+    const a=await pageFetch(page,"/authentication/options",{method:"POST",body:{accountId:"demo-a"}});
+    const b=await pageFetch(page,"/authentication/options",{method:"POST",body:{accountId:"demo-a"}});
+    if(a.status!==200 || b.status!==200 || !a.body.options?.challenge || !b.body.options?.challenge || a.body.options.challenge===b.body.options.challenge) throw new Error("authentication challenges missing or repeated");
+    return "two distinct login challenges";
+  });
+
   await assert("Challenge replay is rejected",async()=>{
     const start=await pageFetch(page,"/authentication/options",{method:"POST",body:{accountId:"demo-a"}});
     if(start.status!==200) throw new Error("options status "+start.status);
