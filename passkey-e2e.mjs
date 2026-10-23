@@ -81,13 +81,13 @@ try {
   await assert("Register second named passkey for account A",async()=>{
     await page.locator("#passkey-name").fill("CI 가상 인증기 A-2");
     await page.locator("#passkey-register").click();
-    await page.waitForFunction(async()=>{
+    await page.waitForFunction(async(API)=>{
       const token=sessionStorage.getItem("passkey_demo_session");
       if(!token)return false;
       const r=await fetch(API+"/credentials",{headers:{Authorization:"Bearer "+token},cache:"no-store"});
       if(!r.ok)return false;
       const d=await r.json(); return d.credentials?.length===2;
-    },null,{timeout:30000});
+    },API,{timeout:30000});
     const creds=await currentCredentials(page,"demo-a");
     if(creds.length!==2 || !creds.every(c=>c.name && c.createdAt)) throw new Error("two named credentials not present");
     return "two credentials with names and registration dates";
@@ -128,7 +128,7 @@ try {
     await page.locator("#passkey-account").selectOption("demo-b");
     await page.locator("#passkey-name").fill("CI 가상 인증기 B-1");
     await page.locator("#passkey-register").click();
-    await page.waitForFunction(()=>document.querySelector("#passkey-private-content")?.hidden===false,{timeout:30000});
+    await page.waitForFunction(()=>document.querySelector("#passkey-private-content")?.hidden===false,null,{timeout:30000});
     const data=await pageFetch(page,"/private",{token:await sessionToken(page)});
     if(data.status!==200 || data.body.account.id!=="demo-b" || data.body.items?.length!==3) throw new Error("B data invalid");
     return "account B authenticated with its own 3 dummy items";
