@@ -239,10 +239,10 @@ Deno.serve(async (req: Request) => {
     if (req.method === "GET" && path === "/credentials") {
       const session = await getSession(req);
       if (!session) return json({ error: "authentication_required" }, 401, origin);
-      const { data, error } = await db.from("passkey_credentials").select("credential_id,name,created_at,last_used_at,device_type,backed_up")
+      const { data, error } = await db.from("passkey_credentials").select("credential_id,credential_public_key,name,created_at,last_used_at,device_type,backed_up")
         .eq("account_id", session.accountId).order("created_at", { ascending: true });
       if (error) return json({ error: "credentials_unavailable" }, 500, origin);
-      return json({ credentials: (data || []).map((c: any) => ({ id: c.credential_id, name: c.name, createdAt: c.created_at, lastUsedAt: c.last_used_at, deviceType: c.device_type, backedUp: c.backed_up })) }, 200, origin);
+      return json({ credentials: (data || []).map((c: any) => ({ id: c.credential_id, name: c.name, publicKey: c.credential_public_key, createdAt: c.created_at, lastUsedAt: c.last_used_at, deviceType: c.device_type, backedUp: c.backed_up })) }, 200, origin);
     }
 
     if (req.method === "POST" && path === "/credentials/delete") {
