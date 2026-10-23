@@ -117,6 +117,22 @@ Deno.serve(async (req: Request) => {
       return json({ options, accountId: account.id, name }, 200, origin);
     }
 
+    if (req.method === "POST" && path === "/registration/cancel") {
+      const input = await body(req);
+      const account = await requireAccount(input.accountId);
+      if (!account || typeof input.challenge !== "string") return json({ error: "invalid_request" }, 400, origin);
+      const { data: existing } = await db.from("passkey_credentials").select("credential_id").eq("account_id", account.id);
+      if ((existing || []).length > 0) {
+        const session = await getSession(req);
+        if (!session || session.accountId !== account.id) return json({ error: "authentication_required_to_cancel_registration" }, 401, origin);
+      }
+      const { data, error } = await db.from("passkey_challenges").delete()
+        .eq("account_id", account.id).eq("purpose", "registration").eq("challenge", input.challenge)
+        .is("used_at", null).select("id").maybeSingle();
+      if (error) return json({ error: "registration_cancel_failed" }, 500, origin);
+      return json({ cancelled: true, removedChallenge: !!data }, 200, origin);
+    }
+
     if (req.method === "POST" && path === "/registration/verify") {
       const input = await body(req);
       const account = await requireAccount(input.accountId);
