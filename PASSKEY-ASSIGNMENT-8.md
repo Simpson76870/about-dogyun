@@ -10,6 +10,7 @@ WebAuthn 서버 검증은 `@simplewebauthn/server@13.1.2`, 데이터 접근은 `
 - 공개 소개와 패스키 UI: `index.html`의 `#passkey-private` 섹션 및 마지막 인라인 스크립트.
 - 등록 옵션 발급: `supabase/functions/passkey-api/index.ts`, `POST /registration/options`.
 - 등록 검증 및 공개키 저장: `POST /registration/verify`.
+- 등록 취소 및 미사용 challenge 정리: `POST /registration/cancel`.
 - 로그인 challenge 발급: `POST /authentication/options`.
 - assertion 검증 및 세션 발급: `POST /authentication/verify`.
 - 로그아웃 및 세션 폐기: `POST /logout`.
@@ -19,7 +20,7 @@ WebAuthn 서버 검증은 `@simplewebauthn/server@13.1.2`, 데이터 접근은 `
 
 ## ④ 안 열리는 것을 확인한 기록
 
-**실행 결과:** GitHub Actions의 브라우저 자동화(WebAuthn 가상 인증기)에서 14/14 E2E 확인이 통과했고, 서버·공개 페이지 smoke test도 7/7 통과했다. 재등록 취소 challenge 확인을 추가한 최신 smoke test는 다시 실행 중이다. 실행 로그: https://github.com/Simpson76870/about-dogyun/actions
+**실행 결과:** GitHub Actions에서 WebAuthn 가상 인증기를 이용한 E2E 14/14 통과, 서버·공개 페이지 smoke test 8/8 통과. 실행 로그: https://github.com/Simpson76870/about-dogyun/actions/runs/39881057141
 
 ### 요청과 응답 기록
 
@@ -50,7 +51,7 @@ A→B 및 B→A 거절 전후 각 계정의 자료 건수는 동일했다. 양�
 
 ### Challenge 값이 서로 다른 기록
 
-등록 및 로그인 challenge의 전체 값은 재사용을 피하기 위해 제출문에 공개하지 않고, 테스트 로그에서 앞 8자리를 대조한다. 최신 smoke test 출력에 `challengeA`, `challengeB`, `distinct: true`가 기록되도록 했다. 이미 사용한 challenge 재사용은 별도로 실제 서버에서 400으로 거절됨을 확인했다.
+등록 및 로그인 challenge의 전체 값은 재사용을 피하기 위해 제출문에 공개하지 않고, 테스트 로그에서 앞 8자리를 대조한다. 실제 smoke test 출력: `challengeA = FD2-1AI4…`, `challengeB = 8HFYnSgE…`, `distinct = true`. 이미 사용한 challenge 재사용은 별도로 실제 서버에서 400으로 거절됨을 확인했다.
 
 ## ⑤ AI와 나
 - AI에게 맡긴 일: 기존 소개 페이지를 확인하고 WebAuthn 인증 흐름, 데이터 구조, API 및 UI 구현을 작성했다.
