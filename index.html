@@ -428,6 +428,9 @@ allow="autoplay">
     return options;
   }
   async function registerPasskey() {
+    let pendingChallenge = null;
+    let pendingAccount = null;
+    const hasSession = !!sessionStorage.getItem(tokenKey);
     if (!window.PublicKeyCredential || !navigator.credentials) {
       status("이 브라우저에서는 WebAuthn을 사용할 수 없습니다. HTTPS 주소와 패스키 지원 브라우저를 확인하세요.");
       return;
@@ -437,11 +440,16 @@ allow="autoplay">
     if (!name) { status("패스키 이름을 입력하세요."); return; }
     try {
       status("서버에서 새 등록 challenge를 요청했습니다. 기기의 패스키 창에서 확인하세요.");
-      const hasSession = !!sessionStorage.getItem(tokenKey);
       const start = await api("/registration/options", {method:"POST",auth:hasSession,body:{accountId,name}});
       const challenge = start.options.challenge;
+      pendingChallenge = challenge;
+      pendingAccount = accountId;
       const credential = await navigator.credentials.create({publicKey:prepareCreationOptions(start.options)});
-      if (!credential) { status("패스키 등록이 취소되었습니다. credential은 저장되지 않았습니다."); return; }
+      if (!credential) {
+        await api("/registration/cancel",{method:"POST",auth:hasSession,body:{accountId,challenge}});
+        status("패스키 등록이 취소되었습니다. 대기 중인 challenge와 credential은 저장되지 않았습니다.");
+        return;
+      }
       const verified = await api("/registration/verify", {
         method:"POST", auth:false,
         body:{accountId, name, challenge, response:credentialToJSON(credential)}
@@ -449,7 +457,10 @@ allow="autoplay">
       status("등록 성공: 서버에는 공개키만 저장되었습니다. 공개키 ID: " + verified.credentialId);
       await loginPasskey();
     } catch (error) {
-      if (error.name === "NotAllowedError" || error.name === "AbortError") status("패스키 등록이 취소되었거나 허용되지 않았습니다. credential은 저장되지 않았습니다.");
+      if (pendingChallenge && pendingAccount) {
+        await api("/registration/cancel",{method:"POST",auth:hasSession,body:{accountId:pendingAccount,challenge:pendingChallenge}}).catch(()=>{});
+      }
+      if (error.name === "NotAllowedError" || error.name === "AbortError") status("패스키 등록이 취소되었거나 허용되지 않았습니다. 대기 중인 challenge와 credential은 저장되지 않았습니다.");
       else status("패스키 등록 실패: " + (error.message || "알 수 없는 오류"));
     }
   }
