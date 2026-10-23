@@ -30,12 +30,20 @@ await check("Unknown account cannot request authentication options", async () =>
   if (r.status !== 400 || r.body.error !== "unknown_account") throw new Error(JSON.stringify(r));
   return "400 unknown_account";
 });
-await check("Registration challenges are unique", async () => {
+await check("Authentication challenges are unique when credentials exist", async () => {
+  for (const accountId of ["demo-a","demo-b"]) {
+    const call = () => request("/authentication/options", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({accountId})});
+    const a = await call();
+    if (a.status === 404 && a.body.error === "no_passkeys_registered") continue;
+    if (a.status !== 200) throw new Error(JSON.stringify({accountId,response:a}));
+    const b = await call();
+    if (b.status !== 200 || !a.body.options?.challenge || !b.body.options?.challenge || a.body.options.challenge === b.body.options.challenge) throw new Error("Authentication challenge missing or repeated");
+    return accountId + ": two distinct login challenges";
+  }
   const call = () => request("/registration/options", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({accountId:"demo-a",name:"CI smoke test"})});
   const [a,b] = await Promise.all([call(),call()]);
-  if (a.status !== 200 || b.status !== 200) throw new Error(JSON.stringify({a,b}));
-  if (!a.body.options?.challenge || !b.body.options?.challenge || a.body.options.challenge === b.body.options.challenge) throw new Error("Challenge missing or repeated");
-  return "two distinct challenges";
+  if (a.status !== 200 || b.status !== 200 || !a.body.options?.challenge || !b.body.options?.challenge || a.body.options.challenge === b.body.options.challenge) throw new Error(JSON.stringify({a,b}));
+  return "demo-a: two distinct registration challenges";
 });
 await check("Untrusted browser origin is rejected", async () => {
   const r = await request("/health", {headers:{Origin:"https://example.invalid"}});
