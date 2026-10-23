@@ -87,7 +87,7 @@ try {
       const r=await fetch(API+"/credentials",{headers:{Authorization:"Bearer "+token},cache:"no-store"});
       if(!r.ok)return false;
       const d=await r.json(); return d.credentials?.length===2;
-    },{timeout:30000});
+    },null,{timeout:30000});
     const creds=await currentCredentials(page,"demo-a");
     if(creds.length!==2 || !creds.every(c=>c.name && c.createdAt)) throw new Error("two named credentials not present");
     return "two credentials with names and registration dates";
@@ -108,7 +108,7 @@ try {
     if(start.status!==200) throw new Error("options status "+start.status);
     const assertion=await page.evaluate(async ({options})=>{
       const from=(v)=>{const s=v.replace(/-/g,"+").replace(/_/g,"/")+"=".repeat((4-v.length%4)%4);return Uint8Array.from(atob(s),c=>c.charCodeAt(0));};
-      const to=(v)=>{let s="";for(const b of new Uint8Array(v))s+=String.fromCharCode(b);return btoa(s).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/g,"");};
+      const to=(v)=>{let s="";for(const b of new Uint8Array(v))s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,"-").replace(/\\//g,"_").replace(/=+$/g,"");};
       options.challenge=from(options.challenge);
       options.allowCredentials=options.allowCredentials.map(c=>({...c,id:from(c.id)}));
       const c=await navigator.credentials.get({publicKey:options});
