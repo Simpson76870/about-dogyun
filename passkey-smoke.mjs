@@ -45,6 +45,16 @@ await check("Authentication challenges are unique when credentials exist", async
   if (a.status !== 200 || b.status !== 200 || !a.body.options?.challenge || !b.body.options?.challenge || a.body.options.challenge === b.body.options.challenge) throw new Error(JSON.stringify({a,b}));
   return "demo-a: two distinct registration challenges";
 });
+await check("Cancelled registration removes its pending challenge", async () => {
+  const start = await request("/registration/options", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({accountId:"demo-a",name:"CI cancellation test"})});
+  if (start.status !== 200) throw new Error("options " + JSON.stringify(start));
+  const challenge = start.body.options.challenge;
+  const cancelled = await request("/registration/cancel", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({accountId:"demo-a",challenge})});
+  if (cancelled.status !== 200 || cancelled.body.removedChallenge !== true) throw new Error("cancel " + JSON.stringify(cancelled));
+  const replay = await request("/registration/verify", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({accountId:"demo-a",name:"cancelled",challenge,response:{}})});
+  if (replay.status !== 400 || replay.body.error !== "challenge_expired_or_reused") throw new Error("cancelled challenge still usable " + JSON.stringify(replay));
+  return "cancel removed the pending challenge; later verification rejected with 400";
+});
 await check("Untrusted browser origin is rejected", async () => {
   const r = await request("/health", {headers:{Origin:"https://example.invalid"}});
   if (r.status !== 403 || r.body.error !== "origin_not_allowed") throw new Error(JSON.stringify(r));
