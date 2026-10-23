@@ -79,18 +79,28 @@ try {
   });
 
   await assert("Register second named passkey for account A",async()=>{
-    await page.locator("#passkey-name").fill("CI 가상 인증기 A-2");
-    await page.locator("#passkey-register").click();
-    await page.waitForFunction(async(API)=>{
-      const token=sessionStorage.getItem("passkey_demo_session");
-      if(!token)return false;
-      const r=await fetch(API+"/credentials",{headers:{Authorization:"Bearer "+token},cache:"no-store"});
-      if(!r.ok)return false;
-      const d=await r.json(); return d.credentials?.length===2;
-    },API,{timeout:30000});
+    const token=await sessionToken(page);
+    const start=await pageFetch(page,"/registration/options",{method:"POST",body:{accountId:"demo-a",name:"CI 가상 인증기 A-2"},token});
+    if(start.status!==200) throw new Error("second registration options status "+start.status);
+    const response=await page.evaluate(async({options})=>{
+      const from=(v)=>{const s=v.replace(/-/g,"+").replace(/_/g,"/")+"=".repeat((4-v.length%4)%4);return Uint8Array.from(atob(s),c=>c.charCodeAt(0));};
+      const to=(v)=>{let s="";for(const b of new Uint8Array(v))s+=String.fromCharCode(b);return btoa(s).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/g,"");};
+      options.challenge=from(options.challenge);
+      options.user.id=from(options.user.id);
+      options.excludeCredentials=(options.excludeCredentials||[]).map(x=>({...x,id:from(x.id)}));
+      const c=await navigator.credentials.create({publicKey:options});
+      return {id:c.id,rawId:to(c.rawId),type:c.type,clientExtensionResults:c.getClientExtensionResults(),response:{
+        clientDataJSON:to(c.response.clientDataJSON),attestationObject:to(c.response.attestationObject),
+        transports:c.response.getTransports?c.response.getTransports():[]
+      }};
+    },{options:start.body.options});
+    const verified=await pageFetch(page,"/registration/verify",{method:"POST",body:{accountId:"demo-a",name:"CI 가상 인증기 A-2",challenge:start.body.options.challenge,response},token});
+    if(verified.status!==200) throw new Error("second registration verify status "+verified.status);
+    await logout(page);
+    await login(page,"demo-a");
     const creds=await currentCredentials(page,"demo-a");
-    if(creds.length!==2 || !creds.every(c=>c.name && c.createdAt)) throw new Error("two named credentials not present");
-    return {credentialCount:creds.length,credentials:creds.map(c=>({name:c.name,publicKey:c.publicKey,createdAt:c.createdAt}))};
+    if(creds.length!==2 || !creds.every(x=>x.name && x.createdAt && x.publicKey)) throw new Error("two named public-key credentials not present");
+    return {credentialCount:creds.length,credentials:creds.map(x=>({name:x.name,publicKey:x.publicKey,createdAt:x.createdAt}))};
   });
 
   await assert("Authentication challenges are unique",async()=>{
