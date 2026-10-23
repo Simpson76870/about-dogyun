@@ -301,6 +301,267 @@ allow="autoplay">
 <a href="https://blog.naver.com/dogson2330" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">네이버 블로그 방문하기</a>
 </div>
 </section>
+
+<section id="passkey-private">
+<h2>패스키 보관함 — 나만 보는 자리</h2>
+<p>소개 페이지는 누구나 볼 수 있습니다. 아래 보관함의 내용은 서버가 WebAuthn 패스키 인증을 확인한 뒤에만 내려줍니다. 비밀번호 입력은 없습니다.</p>
+<div class="passkey-panel">
+  <div class="passkey-public-note">
+    <strong>공개 영역</strong>
+    <p>위의 소개·기술 스택·프로젝트는 로그인 없이 볼 수 있습니다.</p>
+  </div>
+  <div class="passkey-private-note">
+    <strong>비공개 영역</strong>
+    <p>프로젝트 메모, 준비 목록, 학습 회고는 인증 성공 후 서버에서 조회합니다. 모든 내용은 과제용 가상 데이터입니다.</p>
+  </div>
+  <div class="passkey-controls">
+    <label for="passkey-account">실습 계정</label>
+    <select id="passkey-account">
+      <option value="demo-a">테스트 계정 A</option>
+      <option value="demo-b">테스트 계정 B</option>
+    </select>
+    <label for="passkey-name">이 패스키를 알아볼 이름으로 등록</label>
+    <input id="passkey-name" type="text" maxlength="60" placeholder="예: 노트북 지문인식">
+    <div class="btn-group">
+      <button type="button" class="btn" id="passkey-register">패스키 등록</button>
+      <button type="button" class="btn btn-secondary" id="passkey-login">패스키로 로그인</button>
+      <button type="button" class="btn btn-secondary" id="passkey-logout" hidden>로그아웃</button>
+    </div>
+  </div>
+  <p id="passkey-status" role="status" aria-live="polite">로그인 전입니다. 패스키를 등록하거나 이미 등록한 패스키로 로그인하세요.</p>
+  <div id="passkey-private-content" hidden>
+    <h3 id="passkey-owner"></h3>
+    <div id="passkey-items"></div>
+    <h3>등록된 패스키</h3>
+    <p>각 패스키의 이름과 등록 날짜를 확인할 수 있습니다. 삭제한 패스키는 다시 인증에 사용할 수 없습니다.</p>
+    <div id="passkey-credentials"></div>
+  </div>
+</div>
+</section>
+<style>
+#passkey-private .passkey-panel { display:grid; gap:1rem; }
+#passkey-private .passkey-public-note,#passkey-private .passkey-private-note { border:1px solid var(--border); border-radius:12px; padding:1rem; }
+#passkey-private .passkey-public-note { border-left:4px solid #38bdf8; }
+#passkey-private .passkey-private-note { border-left:4px solid #f59e0b; }
+#passkey-private .passkey-controls { display:grid; gap:.65rem; max-width:540px; }
+#passkey-private label { font-weight:600; }
+#passkey-private input,#passkey-private select { width:100%; padding:.7rem .8rem; border:1px solid var(--border); border-radius:8px; background:#0f172a; color:var(--text-main); font:inherit; }
+#passkey-private button { cursor:pointer; font:inherit; border:0; }
+#passkey-private .passkey-item,#passkey-private .passkey-credential { border:1px solid var(--border); border-radius:10px; padding:1rem; margin:.6rem 0; }
+#passkey-private .passkey-item h4 { margin-bottom:.3rem; }
+#passkey-private .passkey-credential button { margin-top:.5rem; }
+#passkey-private [hidden] { display:none !important; }
+#passkey-private #passkey-status { padding:.75rem; border-radius:8px; background:rgba(56,189,248,.08); overflow-wrap:anywhere; }
+</style>
+<script>
+(() => {
+  const API = "https://hjuczlxovnghkljzygoz.supabase.co/functions/v1/passkey-api";
+  const $ = (id) => document.getElementById(id);
+  const accountSelect = $("passkey-account");
+  const statusEl = $("passkey-status");
+  const contentEl = $("passkey-private-content");
+  const tokenKey = "passkey_demo_session";
+  let currentAccount = null;
+
+  function status(message) { statusEl.textContent = message; }
+  function b64urlToBytes(value) {
+    const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - value.length % 4) % 4);
+    const binary = atob(padded);
+    return Uint8Array.from(binary, c => c.charCodeAt(0));
+  }
+  function bytesToB64url(value) {
+    const bytes = new Uint8Array(value);
+    let binary = "";
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  }
+  async function api(path, {method="GET", body, auth=true}={}) {
+    const headers = { "Content-Type": "application/json" };
+    const token = sessionStorage.getItem(tokenKey);
+    if (auth && token) headers.Authorization = "Bearer " + token;
+    const response = await fetch(API + path, {
+      method, headers, cache:"no-store",
+      body: body === undefined ? undefined : JSON.stringify(body)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(data.message || data.error || ("HTTP " + response.status));
+      error.status = response.status;
+      error.data = data;
+      throw error;
+    }
+    return data;
+  }
+  function credentialToJSON(credential) {
+    const result = {
+      id: credential.id,
+      rawId: bytesToB64url(credential.rawId),
+      type: credential.type,
+      clientExtensionResults: credential.getClientExtensionResults(),
+      authenticatorAttachment: credential.authenticatorAttachment || undefined
+    };
+    if (credential.response.attestationObject) {
+      result.response = {
+        clientDataJSON: bytesToB64url(credential.response.clientDataJSON),
+        attestationObject: bytesToB64url(credential.response.attestationObject),
+        transports: credential.response.getTransports ? credential.response.getTransports() : []
+      };
+    } else {
+      result.response = {
+        clientDataJSON: bytesToB64url(credential.response.clientDataJSON),
+        authenticatorData: bytesToB64url(credential.response.authenticatorData),
+        signature: bytesToB64url(credential.response.signature),
+        userHandle: credential.response.userHandle ? bytesToB64url(credential.response.userHandle) : null
+      };
+    }
+    return result;
+  }
+  function prepareCreationOptions(options) {
+    options.challenge = b64urlToBytes(options.challenge);
+    options.user.id = b64urlToBytes(options.user.id);
+    if (options.excludeCredentials) options.excludeCredentials = options.excludeCredentials.map(c => ({...c, id:b64urlToBytes(c.id)}));
+    return options;
+  }
+  function prepareRequestOptions(options) {
+    options.challenge = b64urlToBytes(options.challenge);
+    if (options.allowCredentials) options.allowCredentials = options.allowCredentials.map(c => ({...c, id:b64urlToBytes(c.id)}));
+    return options;
+  }
+  async function registerPasskey() {
+    if (!window.PublicKeyCredential || !navigator.credentials) {
+      status("이 브라우저에서는 WebAuthn을 사용할 수 없습니다. HTTPS 주소와 패스키 지원 브라우저를 확인하세요.");
+      return;
+    }
+    const accountId = accountSelect.value;
+    const name = $("passkey-name").value.trim();
+    if (!name) { status("패스키 이름을 입력하세요."); return; }
+    try {
+      status("서버에서 새 등록 challenge를 요청했습니다. 기기의 패스키 창에서 확인하세요.");
+      const start = await api("/registration/options", {method:"POST",auth:false,body:{accountId,name}});
+      const credential = await navigator.credentials.create({publicKey:prepareCreationOptions(start.options)});
+      if (!credential) { status("패스키 등록이 취소되었습니다. credential은 저장되지 않았습니다."); return; }
+      const verified = await api("/registration/verify", {
+        method:"POST", auth:false,
+        body:{accountId, name, challenge:start.options.challenge, response:credentialToJSON(credential)}
+      });
+      status("등록 성공: 서버에는 공개키만 저장되었습니다. 공개키 ID: " + verified.credentialId);
+      await loginPasskey();
+    } catch (error) {
+      if (error.name === "NotAllowedError" || error.name === "AbortError") status("패스키 등록이 취소되었거나 허용되지 않았습니다. credential은 저장되지 않았습니다.");
+      else status("패스키 등록 실패: " + (error.message || "알 수 없는 오류"));
+    }
+  }
+  async function loginPasskey() {
+    if (!window.PublicKeyCredential || !navigator.credentials) {
+      status("이 브라우저에서는 WebAuthn을 사용할 수 없습니다. HTTPS 주소와 패스키 지원 브라우저를 확인하세요.");
+      return;
+    }
+    const accountId = accountSelect.value;
+    try {
+      status("서버에서 새로운 로그인 challenge를 요청했습니다.");
+      const start = await api("/authentication/options", {method:"POST",auth:false,body:{accountId}});
+      const assertion = await navigator.credentials.get({publicKey:prepareRequestOptions(start.options)});
+      if (!assertion) { status("로그인이 취소되었습니다."); return; }
+      const result = await api("/authentication/verify", {
+        method:"POST", auth:false,
+        body:{accountId,challenge:start.options.challenge,response:credentialToJSON(assertion)}
+      });
+      sessionStorage.setItem(tokenKey,result.token);
+      currentAccount = result.account;
+      accountSelect.disabled = true;
+      $("passkey-register").disabled = true;
+      $("passkey-login").hidden = true;
+      $("passkey-logout").hidden = false;
+      status("패스키 인증 성공. 비공개 자료를 서버에서 불러왔습니다.");
+      await loadPrivate();
+    } catch (error) {
+      if (error.name === "NotAllowedError" || error.name === "AbortError") status("로그인이 취소되었거나 기기에서 승인되지 않았습니다.");
+      else status("로그인 실패: " + (error.message || "알 수 없는 오류"));
+    }
+  }
+  async function loadPrivate() {
+    const data = await api("/private");
+    contentEl.hidden = false;
+    $("passkey-owner").textContent = data.account.displayName + "의 비공개 자료";
+    const items = $("passkey-items");
+    items.replaceChildren();
+    data.items.forEach(item => {
+      const card = document.createElement("article");
+      card.className = "passkey-item";
+      const title = document.createElement("h4");
+      title.textContent = item.title;
+      const body = document.createElement("p");
+      body.textContent = item.body;
+      card.append(title,body);
+      items.append(card);
+    });
+    await loadCredentials();
+  }
+  async function loadCredentials() {
+    const result = await api("/credentials");
+    const list = $("passkey-credentials");
+    list.replaceChildren();
+    if (!result.credentials.length) {
+      const p = document.createElement("p");
+      p.textContent = "등록된 패스키가 없습니다. 새 패스키를 등록해야 다시 로그인할 수 있습니다.";
+      list.append(p);
+      return;
+    }
+    result.credentials.forEach(item => {
+      const card = document.createElement("div");
+      card.className = "passkey-credential";
+      const label = document.createElement("strong");
+      label.textContent = item.name;
+      const date = document.createElement("p");
+      date.textContent = "등록 날짜: " + new Date(item.createdAt).toLocaleString("ko-KR");
+      const device = document.createElement("p");
+      device.textContent = "기기 유형: " + (item.deviceType || "인증기에서 제공하지 않음") + " · 동기화 백업: " + (item.backedUp ? "가능/활성" : "확인되지 않음");
+      const del = document.createElement("button");
+      del.className = "btn btn-secondary";
+      del.type = "button";
+      del.textContent = "이 패스키 삭제";
+      del.addEventListener("click", async () => {
+        if (!confirm("이 패스키를 서버 목록에서 삭제할까요? 삭제 후에는 이 credential로 로그인할 수 없습니다.")) return;
+        try {
+          await api("/credentials/delete",{method:"POST",body:{credentialId:item.id}});
+          status("패스키를 삭제했습니다. 남은 패스키로 로그인할 수 있습니다.");
+          await loadCredentials();
+        } catch(error) { status("패스키 삭제 실패: " + error.message); }
+      });
+      card.append(label,date,device,del);
+      list.append(card);
+    });
+  }
+  async function logout() {
+    try { await api("/logout",{method:"POST"}); }
+    catch(error) { if (error.status !== 401) status("서버 로그아웃 응답: " + error.message); }
+    sessionStorage.removeItem(tokenKey);
+    currentAccount = null;
+    accountSelect.disabled = false;
+    $("passkey-register").disabled = false;
+    $("passkey-login").hidden = false;
+    $("passkey-logout").hidden = true;
+    contentEl.hidden = true;
+    $("passkey-items").replaceChildren();
+    $("passkey-credentials").replaceChildren();
+    status("로그아웃했습니다. 이전 세션 토큰은 서버에서 폐기되었습니다.");
+  }
+  $("passkey-register").addEventListener("click",registerPasskey);
+  $("passkey-login").addEventListener("click",loginPasskey);
+  $("passkey-logout").addEventListener("click",logout);
+  accountSelect.addEventListener("change",() => { if (!sessionStorage.getItem(tokenKey)) status("선택한 실습 계정: " + accountSelect.options[accountSelect.selectedIndex].text); });
+  (async () => {
+    try {
+      const r = await fetch(API + "/health",{cache:"no-store"});
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      status("인증 서버 연결 확인. 공개 소개 페이지는 로그인 없이 볼 수 있습니다.");
+    } catch {
+      status("인증 서버에 연결할 수 없습니다. 공개 소개는 계속 볼 수 있지만 패스키 기능은 사용할 수 없습니다.");
+    }
+  })();
+})();
+</script>
+
 </main>
 </div>
 
