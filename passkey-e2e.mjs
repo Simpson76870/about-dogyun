@@ -200,6 +200,21 @@ try {
     return "last credential deleted; next login options request returns 404 no_passkeys_registered";
   });
 
+  await assert("Clean up virtual credentials for repeatable CI runs",async()=>{
+    await logout(page);
+    await login(page,"demo-b");
+    const creds=await currentCredentials(page,"demo-b");
+    const token=await sessionToken(page);
+    for(const credential of creds){
+      const del=await pageFetch(page,"/credentials/delete",{method:"POST",body:{credentialId:credential.id},token});
+      if(del.status!==200) throw new Error("cleanup delete failed: "+del.status);
+    }
+    const options=await pageFetch(page,"/authentication/options",{method:"POST",body:{accountId:"demo-b"}});
+    if(options.status!==404 || options.body.error!=="no_passkeys_registered") throw new Error("B credentials not cleaned");
+    return "both demo accounts end with zero registered credentials";
+  });
+
+
 } finally {
   await cdp.send("WebAuthn.removeVirtualAuthenticator",{authenticatorId}).catch(()=>{});
   await browser.close();
