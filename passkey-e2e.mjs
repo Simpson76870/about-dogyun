@@ -95,7 +95,7 @@ try {
     if(start.status!==200) throw new Error("second registration options status "+start.status);
     const response=await backupPage.evaluate(async({options})=>{
       const from=(v)=>{const s=v.replace(/-/g,"+").replace(/_/g,"/")+"=".repeat((4-v.length%4)%4);return Uint8Array.from(atob(s),c=>c.charCodeAt(0));};
-      const to=(v)=>{let s="";for(const b of new Uint8Array(v))s+=String.fromCharCode(b);return btoa(s).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/g,"");};
+      const to=(v)=>{let s="";for(const b of new Uint8Array(v))s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");};
       options.challenge=from(options.challenge);
       options.user.id=from(options.user.id);
       options.excludeCredentials=(options.excludeCredentials||[]).map(x=>({...x,id:from(x.id)}));
