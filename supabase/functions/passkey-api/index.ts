@@ -99,6 +99,10 @@ Deno.serve(async (req: Request) => {
       const name = typeof input.name === "string" ? input.name.trim().slice(0, 60) : "";
       if (!name) return json({ error: "passkey_name_required" }, 400, origin);
       const { data: existing } = await db.from("passkey_credentials").select("credential_id,transports").eq("account_id", account.id);
+      if ((existing || []).length > 0) {
+        const session = await getSession(req);
+        if (!session || session.accountId !== account.id) return json({ error: "authentication_required_to_add_passkey" }, 401, origin);
+      }
       const options = await generateRegistrationOptions({
         rpName: RP_NAME,
         rpID: RP_ID,
@@ -121,6 +125,11 @@ Deno.serve(async (req: Request) => {
       }
       const consumed = await consumeChallenge(account.id, "registration", input.challenge);
       if (!consumed) return json({ error: "challenge_expired_or_reused" }, 400, origin);
+      const { data: existingCredentials } = await db.from("passkey_credentials").select("credential_id").eq("account_id", account.id);
+      if ((existingCredentials || []).length > 0) {
+        const session = await getSession(req);
+        if (!session || session.accountId !== account.id) return json({ error: "authentication_required_to_add_passkey" }, 401, origin);
+      }
       let verification: any;
       try {
         verification = await verifyRegistrationResponse({
