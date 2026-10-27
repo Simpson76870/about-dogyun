@@ -1,0 +1,9 @@
+BR-A deterministic output verification
+Date: 2026-10-27
+Input: input/ritual_records.json
+Run 1 SHA256: fa9367040b3efb01b5f45c0aa116b9707b8b352a44f7735b47cf96a53f82a252
+Run 2 SHA256: fa9367040b3efb01b5f45c0aa116b9707b8b352a44f7735b47cf96a53f82a252
+Byte comparison: identical (cmp passed)
+Fresh-copy verification: passed after copying only generate.py and input/ to a new folder.
+Fresh-copy SHA256: fa9367040b3efb01b5f45c0aa116b9707b8b352a44f7735b47cf96a53f82a252
+Fresh-copy repeated runs: byte-identical (cmp passed).
